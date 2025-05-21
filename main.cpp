@@ -19,7 +19,7 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height); // Update viewportu
 void mouse_callback(GLFWwindow* window, double xpos, double ypos); // cursor movement tracking
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset); // scrolling tracking
-void processInput(GLFWwindow *window);
+void processInput(GLFWwindow* window);
 
 // Settings
 const unsigned int SCR_WIDTH = 800;
@@ -83,54 +83,54 @@ int main()
 
     // Load shader porgram
     // -------------------
-    Shader ourShader("shaders/3d_tex.vs","shaders/tex.fs");
+    Shader ourShader("shaders/vertex/3d.glsl","shaders/fragment/2ucol.glsl");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
 
     // Vertices with texture coords
     float vertices[] = {
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f,  0.5f, -0.5f,
+        0.5f,  0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
 
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,
+        0.5f, -0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
 
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
 
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,
+        0.5f,  0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,
 
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f,  0.5f,
+        0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f, -0.5f,
 
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+        -0.5f,  0.5f, -0.5f,
+        0.5f,  0.5f, -0.5f,
+        0.5f,  0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
     };
 
     // world space positions of our cubes
@@ -150,15 +150,15 @@ int main()
     
     // Generovanie vertex buffer objektu, element buffer objektu a vertex array objektu,
     // ktory uchovava konfiguraciu: EBO, VBO, vertex attribute pointer (ako ma spracovat vertexy)
-    unsigned int VAO;
+    unsigned int objectVAO;
     unsigned int VBO;
-    glGenVertexArrays(1, &VAO);
+    glGenVertexArrays(1, &objectVAO);
     glGenBuffers(1, &VBO);
 
     // Inicializacny kod
     
     // bind the Vertex Array Object first, then bind and set vertex and element buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
+    glBindVertexArray(objectVAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -173,24 +173,18 @@ int main()
     // 6th parameter: The offset from the start of the buffer to the start of the first attribute
 
     // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // Texture attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)) );
-    glEnableVertexAttribArray(1);
 
-    // Setting the color through OpenGL code using the shaders uniform variables
-    // -------------------------------------------------------------------------
-
-    // Hodnota podla casu od inicializacie od 0.0f do 1.0f
-    // float timeValue = glfwGetTime();
-    // float greenValue = (std::sin(timeValue) / 2.0f) + 0.5f;
-
-    // Ziskanie lokacie, nastavenie programu aby sme mohli zmenit uniform a nastavime farbu
-    // int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
-    // glUseProgram(shaderProgram);
-    // glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+    unsigned int lightVAO;
+    glGenVertexArrays(1, &lightVAO);
+    glBindVertexArray(lightVAO);
+    // we only need to bind to the VBO, the container's VBO's data already contains the data.
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // set the vertex attribute 
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
 
     // Configure texturing and load a texture
     // ----------------------------------------------------------------------------
@@ -317,7 +311,7 @@ int main()
         ourShader.setMatrix4f("projection", glm::value_ptr(projection));
 
         // Render 10 cubes
-        glBindVertexArray(VAO);
+        glBindVertexArray(objectVAO);
         for (int i = 0; i < 10; i++)
         {
             // set matrices
@@ -349,7 +343,7 @@ int main()
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
+void processInput(GLFWwindow* window)
 {
     // close window
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
