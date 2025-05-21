@@ -79,12 +79,12 @@ int main()
 
     // Load shader porgram
     // -------------------
-    Shader lightingShader("shaders/vertex/3d.glsl","shaders/fragment/2ucol.glsl");
-    Shader lightCubeShader("shaders/vertex/3d.glsl","shaders/fragment/white.glsl");
+    Shader objectShader("shaders/vertex/3d.glsl","shaders/fragment/2ucol_l.glsl");
+    Shader lightShader("shaders/vertex/3d.glsl","shaders/fragment/white.glsl");
 
-    lightingShader.use();
-    lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-    lightingShader.setVec3("lightColor",  1.0f, 1.0f, 1.0f);
+    objectShader.use();
+    objectShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+    objectShader.setVec3("lightColor",  1.0f, 1.0f, 1.0f);
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -223,18 +223,18 @@ int main()
         lightModel = glm::scale(lightModel, glm::vec3(0.2f));
 
         // Send to shaders and render
-        lightingShader.use();
-        lightingShader.setMatrix4f("view", glm::value_ptr(view));
-        lightingShader.setMatrix4f("projection", glm::value_ptr(projection));
-        lightingShader.setMatrix4f("model", glm::value_ptr(objectModel));
+        objectShader.use();
+        objectShader.setMatrix4f("view", glm::value_ptr(view));
+        objectShader.setMatrix4f("projection", glm::value_ptr(projection));
+        objectShader.setMatrix4f("model", glm::value_ptr(objectModel));
         
         glBindVertexArray(objectVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        lightCubeShader.use();
-        lightCubeShader.setMatrix4f("view", glm::value_ptr(view));
-        lightCubeShader.setMatrix4f("projection", glm::value_ptr(projection));
-        lightCubeShader.setMatrix4f("model", glm::value_ptr(lightModel));
+        lightShader.use();
+        lightShader.setMatrix4f("view", glm::value_ptr(view));
+        lightShader.setMatrix4f("projection", glm::value_ptr(projection));
+        lightShader.setMatrix4f("model", glm::value_ptr(lightModel));
 
         glBindVertexArray(lightVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
