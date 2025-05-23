@@ -1,6 +1,4 @@
 #include <iostream>
-#include <cmath>
-// #include <cstdlib>
 
 // Glad sa importuje pred glfw
 #include <glad/glad.h>
@@ -9,8 +7,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-#include <stb/image_load.cpp>
 
 #include "shader.h"
 #include "camera.h"
@@ -81,72 +77,71 @@ int main()
     // Enable depth testing for 3D rendering
     glEnable(GL_DEPTH_TEST);  
 
+    // Declare uniforms before shaders
+    glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
+    glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+
     // Load shader porgram
     // -------------------
-    Shader ourShader("shaders/vertex/3d.glsl","shaders/fragment/2ucol.glsl");
+    Shader objectShader("shaders/vertex/3d_lighting.glsl","shaders/fragment/lighting.glsl");
+    Shader lightShader("shaders/vertex/3d.glsl","shaders/fragment/ucol.glsl");
+
+    objectShader.use();
+    objectShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+    objectShader.setVec3("lightColor", lightColor);
+    objectShader.setVec3("lightPos", lightPos);
+
+    lightShader.use();
+    lightShader.setVec3("color", lightColor);
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
 
     // Vertices with texture coords
     float vertices[] = {
-        -0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f,  0.5f, -0.5f,
-        0.5f,  0.5f, -0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
 
-        -0.5f, -0.5f,  0.5f,
-        0.5f, -0.5f,  0.5f,
-        0.5f,  0.5f,  0.5f,
-        0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
 
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
 
-        0.5f,  0.5f,  0.5f,
-        0.5f,  0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f,  0.5f,
-        0.5f,  0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
 
-        -0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f,  0.5f,
-        0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
 
-        -0.5f,  0.5f, -0.5f,
-        0.5f,  0.5f, -0.5f,
-        0.5f,  0.5f,  0.5f,
-        0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
     };
 
-    // world space positions of our cubes
-    glm::vec3 cubePositions[] = {
-        glm::vec3( 0.0f,  0.0f,  0.0f),
-        glm::vec3( 2.0f,  5.0f, -15.0f),
-        glm::vec3(-1.5f, -2.2f, -2.5f),
-        glm::vec3(-3.8f, -2.0f, -12.3f),
-        glm::vec3( 2.4f, -0.4f, -3.5f),
-        glm::vec3(-1.7f,  3.0f, -7.5f),
-        glm::vec3( 1.3f, -2.0f, -2.5f),
-        glm::vec3( 1.5f,  2.0f, -2.5f),
-        glm::vec3( 1.5f,  0.2f, -1.5f),
-        glm::vec3(-1.3f,  1.0f, -1.5f)
-    };
-    
     // Generovanie vertex buffer objektu, element buffer objektu a vertex array objektu,
     // ktory uchovava konfiguraciu: EBO, VBO, vertex attribute pointer (ako ma spracovat vertexy)
     unsigned int objectVAO;
@@ -172,9 +167,10 @@ int main()
     // 6th parameter: The offset from the start of the buffer to the start of the first attribute
 
     // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     unsigned int lightVAO;
     glGenVertexArrays(1, &lightVAO);
@@ -182,95 +178,23 @@ int main()
     // we only need to bind to the VBO, the container's VBO's data already contains the data.
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     // set the vertex attribute 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
     // Configure texturing and load a texture
     // ----------------------------------------------------------------------------
-
-    // Generate textures and its object and bind it
-    unsigned int texture0, texture1;
-
-    glGenTextures(1, &texture0);
-
-    glBindTexture(GL_TEXTURE_2D, texture0);
-
-    // Texture wrapping
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-
-    // Texture filtering with mipmaps
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-
-    // Load image
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true);  
-    unsigned char *data = stbi_load("images/container.jpg", &width, &height, &nrChannels, 0);
-
-    // Set the image as the openGL objects data and generate a mipmap for it
-
-    // The first argument specifies the texture target
-    // The second argument specifies the mipmap level for which we want to create a texture for
-    // The third argument tells OpenGL in what kind of format we want to store the texture
-    // The 4th and 5th argument sets the width and height of the resulting texture
-    // The next argument should always be 0 (some legacy stuff).
-    // The 7th and 8th argument specify the format and datatype of the source image
-    // The last argument is the actual image data
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    // Free the image data after its loaded into GL object
-    stbi_image_free(data);
-
-    glGenTextures(1, &texture1);
-
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-
-    data = stbi_load("images/awesomeface.png", &width, &height, &nrChannels, 0);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    stbi_image_free(data);
-
-    // Set the texture units with uniforms
-    ourShader.use();
-    ourShader.setInt("texture0", 0);
-    ourShader.setInt("texture1", 1);
 
     // Coordinate systems
     // ------------------
 
     // Matrices that dont change are defined and sent to the shader here
 
-    // model matrix
+    // projection matrix
 
     // view matrix
 
-    // projection matrix
+    // model matrix
     
-    // Camera
-    // ------
-
-    // camera position
-    // glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
-    
-    // camera direction (reverse of what it actually is)
-    // glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-    // glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget);
-
-    // right (x) axis
-    // glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f); 
-    // glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
-
-    // up (y) axis
-    // glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
-
     // Rendering loop
     // --------------
     while (!glfwWindowShouldClose(window))
@@ -288,45 +212,43 @@ int main()
         // ---------
 
         // Nastavenie pozadia
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Select textures
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture0);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, texture1);
-
-        // activate shader
-        ourShader.use();
-
-        // view matrix = camera
-        // --------------------
-        glm::mat4 view = camera.GetViewMatrix();
-        ourShader.setMatrix4f("view", glm::value_ptr(view));
 
         // Projection matrix
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), 800.0f / 600.0f, 0.1f, 100.0f);
-        ourShader.setMatrix4f("projection", glm::value_ptr(projection));
 
-        // Render 10 cubes
+        // View matrix = camera
+        glm::mat4 view = camera.GetViewMatrix();
+
+        // Model matrix
+        glm::mat4 objectModel = glm::mat4(1.0f);
+        objectModel = glm::rotate(objectModel, currentFrame, glm::vec3(1.0f, 1.0f, -1.0f));
+
+        // Normal model matrix
+        glm::mat3 objectNormalModel = glm::transpose(glm::inverse(glm::mat3(objectModel)));
+
+        glm::mat4 lightModel = glm::mat4(1.0f);
+        lightModel = glm::translate(lightModel, lightPos);
+        lightModel = glm::scale(lightModel, glm::vec3(0.2f));
+
+        // Send to shaders and render
+        objectShader.use();
+        objectShader.setMatrix4f("view", glm::value_ptr(view));
+        objectShader.setMatrix4f("projection", glm::value_ptr(projection));
+        objectShader.setMatrix4f("model", glm::value_ptr(objectModel));
+        objectShader.setMatrix3f("normalModel", glm::value_ptr(objectNormalModel));
+        
         glBindVertexArray(objectVAO);
-        for (int i = 0; i < 10; i++)
-        {
-            // set matrices
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
-            // model matrix
-            float angle = 20.0f * i;
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, cubePositions[i]);
-            model = glm::rotate(model, angle, glm::vec3(0.5f, 1.0f, 0.0f));
+        lightShader.use();
+        lightShader.setMatrix4f("view", glm::value_ptr(view));
+        lightShader.setMatrix4f("projection", glm::value_ptr(projection));
+        lightShader.setMatrix4f("model", glm::value_ptr(lightModel));
 
-            // send matrices to shader
-            ourShader.setMatrix4f("model", glm::value_ptr(model));
-
-            // Draw
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
+        glBindVertexArray(lightVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
