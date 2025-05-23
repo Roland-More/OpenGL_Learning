@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cmath>
 
 // Glad sa importuje pred glfw
 #include <glad/glad.h>
@@ -20,6 +21,10 @@ void processInput(GLFWwindow* window);
 // Settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+
+// For ball rendering
+const unsigned int TR_COUNT = 90;
+const float RADIUS = 0.70710678f;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -97,8 +102,8 @@ int main()
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
 
-    // Vertices with texture coords
-    float vertices[] = {
+    // Vertices with normal vectors
+    float cubeVertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
@@ -142,20 +147,42 @@ int main()
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
     };
 
+    float ballVertices[9 * TR_COUNT * TR_COUNT];
+    for (int k = 0; k < TR_COUNT; k++)
+    {
+        float pos_z = std::cos(glm::radians(360.0f * k / TR_COUNT)) * RADIUS;
+        for (int i = 0; i < TR_COUNT; i++)
+        {
+            float angle_1 = glm::radians(360.0f * i / TR_COUNT);
+            float angle_2 = glm::radians(360.0f * (i + 1) / TR_COUNT);
+
+            for (int j = 0; j < 3; j++)
+                ballVertices[9 * i + j] = 0.0f;
+
+            ballVertices[9 * k * i + 3] = std::cos(angle_1) * RADIUS;
+            ballVertices[9 * k * i + 4] = std::sin(angle_1) * RADIUS;
+            ballVertices[9 * k * i + 5] = pos_z;
+
+            ballVertices[9 * k * i + 6] = std::cos(angle_2) * RADIUS;
+            ballVertices[9 * k * i + 7] = std::sin(angle_2) * RADIUS;
+            ballVertices[9 * k * i + 8] = pos_z;
+        }
+    }
+
     // Generovanie vertex buffer objektu, element buffer objektu a vertex array objektu,
     // ktory uchovava konfiguraciu: EBO, VBO, vertex attribute pointer (ako ma spracovat vertexy)
     unsigned int objectVAO;
-    unsigned int VBO;
+    unsigned int objectVBO;
     glGenVertexArrays(1, &objectVAO);
-    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &objectVBO);
 
     // Inicializacny kod
     
     // bind the Vertex Array Object first, then bind and set vertex and element buffer(s), and then configure vertex attributes(s).
     glBindVertexArray(objectVAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, objectVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
 
     // Nastavime ako ma OpenGL spracovat nase vertex atributy na locations
 
@@ -173,12 +200,15 @@ int main()
     glEnableVertexAttribArray(1);
 
     unsigned int lightVAO;
+    unsigned int lightVBO;
     glGenVertexArrays(1, &lightVAO);
+    glGenBuffers(1, &lightVBO);
     glBindVertexArray(lightVAO);
     // we only need to bind to the VBO, the container's VBO's data already contains the data.
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(ballVertices), ballVertices, GL_STATIC_DRAW);
     // set the vertex attribute 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
     // Configure texturing and load a texture
@@ -223,7 +253,7 @@ int main()
 
         // Model matrix
         glm::mat4 objectModel = glm::mat4(1.0f);
-        objectModel = glm::rotate(objectModel, currentFrame, glm::vec3(1.0f, 1.0f, -1.0f));
+        // objectModel = glm::rotate(objectModel, currentFrame, glm::vec3(1.0f, 1.0f, -1.0f));
 
         // Normal model matrix
         glm::mat3 objectNormalModel = glm::transpose(glm::inverse(glm::mat3(objectModel)));
@@ -248,7 +278,7 @@ int main()
         lightShader.setMatrix4f("model", glm::value_ptr(lightModel));
 
         glBindVertexArray(lightVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 3 * TR_COUNT * TR_COUNT);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
