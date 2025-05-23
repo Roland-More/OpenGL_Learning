@@ -146,7 +146,6 @@ int main()
         glm::vec3( 1.5f,  0.2f, -1.5f),
         glm::vec3(-1.3f,  1.0f, -1.5f)
     };
-
     
     // Generovanie vertex buffer objektu, element buffer objektu a vertex array objektu,
     // ktory uchovava konfiguraciu: EBO, VBO, vertex attribute pointer (ako ma spracovat vertexy)
