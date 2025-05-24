@@ -24,7 +24,7 @@ const unsigned int SCR_HEIGHT = 600;
 
 // For ball rendering
 const unsigned int TR_COUNT = 90;
-const float RADIUS = 0.70710678f;
+const float RADIUS = 0.5f;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -148,24 +148,27 @@ int main()
     };
 
     float ballVertices[9 * TR_COUNT * TR_COUNT];
+    unsigned int index = 0;
     for (int k = 0; k < TR_COUNT; k++)
     {
-        float pos_z = std::cos(glm::radians(360.0f * k / TR_COUNT)) * RADIUS;
+        float circ_angle_1 = glm::radians(360.0f * k / TR_COUNT);
+        float circ_angle_2 = glm::radians(360.0f * (k + 1) / TR_COUNT);
+
         for (int i = 0; i < TR_COUNT; i++)
         {
             float angle_1 = glm::radians(360.0f * i / TR_COUNT);
             float angle_2 = glm::radians(360.0f * (i + 1) / TR_COUNT);
 
             for (int j = 0; j < 3; j++)
-                ballVertices[9 * i + j] = 0.0f;
+                ballVertices[index++] = 0.0f;
 
-            ballVertices[9 * k * i + 3] = std::cos(angle_1) * RADIUS;
-            ballVertices[9 * k * i + 4] = std::sin(angle_1) * RADIUS;
-            ballVertices[9 * k * i + 5] = pos_z;
+            ballVertices[index++] = std::cosf(angle_1) * RADIUS * std::cosf(circ_angle_1);
+            ballVertices[index++] = std::sinf(angle_1) * RADIUS;
+            ballVertices[index++] = std::sinf(circ_angle_1) * RADIUS * std::cosf(angle_1);
 
-            ballVertices[9 * k * i + 6] = std::cos(angle_2) * RADIUS;
-            ballVertices[9 * k * i + 7] = std::sin(angle_2) * RADIUS;
-            ballVertices[9 * k * i + 8] = pos_z;
+            ballVertices[index++] = std::cosf(angle_2) * RADIUS * std::cosf(circ_angle_2);
+            ballVertices[index++] = std::sinf(angle_2) * RADIUS;
+            ballVertices[index++] = std::sinf(circ_angle_2) * RADIUS * std::cosf(angle_2);
         }
     }
 
