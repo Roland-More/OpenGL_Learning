@@ -22,12 +22,13 @@ void processInput(GLFWwindow* window);
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
-// For ball rendering
-const unsigned int TR_COUNT = 90;
+// For sphere rendering
+const unsigned int SEGMENTS = 20;
 const float RADIUS = 0.5f;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -147,28 +148,37 @@ int main()
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
     };
 
-    float ballVertices[9 * TR_COUNT * TR_COUNT];
-    unsigned int index = 0;
-    for (int k = 0; k < TR_COUNT; k++)
-    {
-        float circ_angle_1 = glm::radians(360.0f * k / TR_COUNT);
-        float circ_angle_2 = glm::radians(360.0f * (k + 1) / TR_COUNT);
+    float sphereVertices[3 * (SEGMENTS + 1) * (SEGMENTS + 1)];
+    int index = 0;
+    for (int i = 0; i <= SEGMENTS; ++i) {
+        float phi = glm::pi<float>() * i / SEGMENTS;
+        for (int j = 0; j <= SEGMENTS; ++j) {
+            float theta = glm::two_pi<float>() * j / SEGMENTS;
 
-        for (int i = 0; i < TR_COUNT; i++)
-        {
-            float angle_1 = glm::radians(360.0f * i / TR_COUNT);
-            float angle_2 = glm::radians(360.0f * (i + 1) / TR_COUNT);
+            float x = RADIUS * std::sin(phi) * std::cos(theta);
+            float y = RADIUS * std::cos(phi);
+            float z = RADIUS * std::sin(phi) * std::sin(theta);
 
-            for (int j = 0; j < 3; j++)
-                ballVertices[index++] = 0.0f;
+            sphereVertices[index++] = x;
+            sphereVertices[index++] = y;
+            sphereVertices[index++] = z;
+        }
+    }
 
-            ballVertices[index++] = std::cosf(angle_1) * RADIUS * std::cosf(circ_angle_1);
-            ballVertices[index++] = std::sinf(angle_1) * RADIUS;
-            ballVertices[index++] = std::sinf(circ_angle_1) * RADIUS * std::cosf(angle_1);
+    unsigned int sphereIndices[6 * SEGMENTS * SEGMENTS];
+    index = 0;
+    for (int i = 0; i < SEGMENTS; ++i) {
+        for (int j = 0; j < SEGMENTS; ++j) {
+            int first = i * (SEGMENTS + 1) + j;
+            int second = first + SEGMENTS + 1;
 
-            ballVertices[index++] = std::cosf(angle_2) * RADIUS * std::cosf(circ_angle_2);
-            ballVertices[index++] = std::sinf(angle_2) * RADIUS;
-            ballVertices[index++] = std::sinf(circ_angle_2) * RADIUS * std::cosf(angle_2);
+            sphereIndices[index++] = first;
+            sphereIndices[index++] = second;
+            sphereIndices[index++] = first + 1;
+
+            sphereIndices[index++] = second;
+            sphereIndices[index++] = second + 1;
+            sphereIndices[index++] = first + 1;
         }
     }
 
@@ -204,12 +214,18 @@ int main()
 
     unsigned int lightVAO;
     unsigned int lightVBO;
+    unsigned int lightEBO;
     glGenVertexArrays(1, &lightVAO);
     glGenBuffers(1, &lightVBO);
+    glGenBuffers(1, &lightEBO);
+    
     glBindVertexArray(lightVAO);
-    // we only need to bind to the VBO, the container's VBO's data already contains the data.
+
     glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(ballVertices), ballVertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(sphereVertices), sphereVertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphereIndices), sphereIndices, GL_STATIC_DRAW);
     // set the vertex attribute 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -281,7 +297,7 @@ int main()
         lightShader.setMatrix4f("model", glm::value_ptr(lightModel));
 
         glBindVertexArray(lightVAO);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 3 * TR_COUNT * TR_COUNT);
+        glDrawElements(GL_TRIANGLE_STRIP, 6 * SEGMENTS * SEGMENTS, GL_UNSIGNED_INT, 0);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
