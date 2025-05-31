@@ -83,14 +83,14 @@ int main()
     // Enable depth testing for 3D rendering
     glEnable(GL_DEPTH_TEST);  
 
-    // Declare uniforms before shaders
-    glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
-    glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
-
-    // Load shader porgram
-    // -------------------
+    // Load shader porgrams
+    // --------------------
     Shader objectShader("shaders/vertex/3d_lighting.glsl","shaders/fragment/lighting.glsl");
     Shader lightShader("shaders/vertex/3d.glsl","shaders/fragment/ucol.glsl");
+
+    // Declare uniforms
+    glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
+    glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 
     objectShader.use();
     objectShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
@@ -274,12 +274,12 @@ int main()
         glm::mat4 objectModel = glm::mat4(1.0f);
         // objectModel = glm::rotate(objectModel, currentFrame, glm::vec3(1.0f, 1.0f, -1.0f));
 
-        // Normal model matrix
-        glm::mat3 objectNormalModel = glm::transpose(glm::inverse(glm::mat3(objectModel)));
-
         glm::mat4 lightModel = glm::mat4(1.0f);
         lightModel = glm::translate(lightModel, lightPos);
         lightModel = glm::scale(lightModel, glm::vec3(0.2f));
+
+        // Normal model matrix
+        glm::mat3 objectNormalModel = glm::transpose(glm::inverse(glm::mat3(objectModel)));
 
         // Send to shaders and render
         objectShader.use();
@@ -287,6 +287,7 @@ int main()
         objectShader.setMatrix4f("projection", glm::value_ptr(projection));
         objectShader.setMatrix4f("model", glm::value_ptr(objectModel));
         objectShader.setMatrix3f("normalModel", glm::value_ptr(objectNormalModel));
+        objectShader.setVec3("viewPos", camera.Position);
         
         glBindVertexArray(objectVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
