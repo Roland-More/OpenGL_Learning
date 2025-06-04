@@ -85,7 +85,7 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader objectShader("shaders/vertex/3d_lighting.glsl","shaders/fragment/lighting.glsl");
+    Shader objectShader("shaders/vertex/3d_lgouraud.glsl","shaders/fragment/lgouraud.glsl");
     Shader lightShader("shaders/vertex/3d.glsl","shaders/fragment/ucol.glsl");
 
     // Declare uniforms
