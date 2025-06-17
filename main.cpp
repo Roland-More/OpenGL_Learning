@@ -18,6 +18,14 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos); // cursor mov
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset); // scrolling tracking
 void processInput(GLFWwindow* window);
 
+struct Material {
+    glm::vec3 ambient;
+    glm::vec3 diffuse;
+    glm::vec3 specular;
+    float shininess;
+};
+
+
 // Settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -85,17 +93,30 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader objectShader("shaders/vertex/3d_lgouraud.glsl","shaders/fragment/lgouraud.glsl");
+    Shader objectShader("shaders/vertex/3d_lphong.glsl","shaders/fragment/lphongma.glsl");
     Shader lightShader("shaders/vertex/3d.glsl","shaders/fragment/ucol.glsl");
 
     // Declare uniforms
+    Material jade = {
+        .ambient = {0.135f, 0.2225f, 0.1575f},
+        .diffuse = {0.54f, 0.89f, 0.63f},
+        .specular = {0.316228f, 0.316228f, 0.316228f},
+        .shininess = 12.8f
+    };
+
     glm::vec3 lightColor(1.0f, 1.0f, 1.0f);
     glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 
+    // Set uniforms
     objectShader.use();
-    objectShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-    objectShader.setVec3("lightColor", lightColor);
-    objectShader.setVec3("lightPos", lightPos);
+    objectShader.setVec3("material.ambient", jade.ambient);
+    objectShader.setVec3("material.diffuse", jade.diffuse);
+    objectShader.setVec3("material.specular", jade.specular);
+    objectShader.setFloat("material.shininess", jade.shininess);
+    objectShader.setVec3("light.position", lightPos);
+    objectShader.setVec3("light.ambient",  1.0f, 1.0f, 1.0f);
+    objectShader.setVec3("light.diffuse",  1.0f, 1.0f, 1.0f); // darken diffuse light a bit
+    objectShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
 
     lightShader.use();
     lightShader.setVec3("color", lightColor);
@@ -288,7 +309,7 @@ int main()
         objectShader.setMatrix4f("model", glm::value_ptr(objectModel));
         objectShader.setMatrix3f("normalModel", glm::value_ptr(objectNormalModel));
         objectShader.setVec3("viewPos", camera.Position);
-        
+
         glBindVertexArray(objectVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -296,6 +317,7 @@ int main()
         lightShader.setMatrix4f("view", glm::value_ptr(view));
         lightShader.setMatrix4f("projection", glm::value_ptr(projection));
         lightShader.setMatrix4f("model", glm::value_ptr(lightModel));
+        lightShader.setVec3("color", lightColor);
 
         glBindVertexArray(lightVAO);
         glDrawElements(GL_TRIANGLE_STRIP, 6 * SEGMENTS * SEGMENTS, GL_UNSIGNED_INT, 0);
