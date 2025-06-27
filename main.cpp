@@ -88,7 +88,7 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader objectShader("shaders/vertex/3d_lphong.glsl","shaders/fragment/lphongma.glsl");
+    Shader objectShader("shaders/vertex/3d_lphong.glsl","shaders/fragment/point.glsl");
     Shader lightShader("shaders/vertex/3d.glsl","shaders/fragment/ucol.glsl");
 
     // Declare uniforms
@@ -104,6 +104,9 @@ int main()
     objectShader.setVec3("light.ambient",  0.2f, 0.2f, 0.2f);
     objectShader.setVec3("light.diffuse",  0.5f, 0.5f, 0.5f); // darken diffuse light a bit
     objectShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+    objectShader.setFloat("light.constant",  1.0f);
+    objectShader.setFloat("light.linear",    0.09f);
+    objectShader.setFloat("light.quadratic", 0.032f);
 
     lightShader.use();
     lightShader.setVec3("color", lightColor);
@@ -155,6 +158,19 @@ int main()
         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
         -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
+    };
+
+    glm::vec3 cubePositions[] = {
+        glm::vec3( 0.0f,  0.0f,  0.0f),
+        glm::vec3( 2.0f,  5.0f, -15.0f),
+        glm::vec3(-1.5f, -2.2f, -2.5f),
+        glm::vec3(-3.8f, -2.0f, -12.3f),
+        glm::vec3( 2.4f, -0.4f, -3.5f),
+        glm::vec3(-1.7f,  3.0f, -7.5f),
+        glm::vec3( 1.3f, -2.0f, -2.5f),
+        glm::vec3( 1.5f,  2.0f, -2.5f),
+        glm::vec3( 1.5f,  0.2f, -1.5f),
+        glm::vec3(-1.3f,  1.0f, -1.5f)
     };
 
     float sphereVertices[3 * (SEGMENTS + 1) * (SEGMENTS + 1)];
@@ -337,26 +353,34 @@ int main()
         glm::mat4 view = camera.GetViewMatrix();
 
         // Model matrix
-        glm::mat4 objectModel = glm::mat4(1.0f);
-        // objectModel = glm::rotate(objectModel, currentFrame, glm::vec3(1.0f, 1.0f, -1.0f));
+        // glm::mat4 objectModel = glm::mat4(1.0f);
 
         glm::mat4 lightModel = glm::mat4(1.0f);
         lightModel = glm::translate(lightModel, lightPos);
         lightModel = glm::scale(lightModel, glm::vec3(0.2f));
 
         // Normal model matrix
-        glm::mat3 objectNormalModel = glm::transpose(glm::inverse(glm::mat3(objectModel)));
+        // glm::mat3 objectNormalModel = glm::transpose(glm::inverse(glm::mat3(objectModel)));
 
         // Send to shaders and render
         objectShader.use();
         objectShader.setMatrix4f("view", glm::value_ptr(view));
         objectShader.setMatrix4f("projection", glm::value_ptr(projection));
-        objectShader.setMatrix4f("model", glm::value_ptr(objectModel));
-        objectShader.setMatrix3f("normalModel", glm::value_ptr(objectNormalModel));
         objectShader.setVec3("viewPos", camera.Position);
 
         glBindVertexArray(objectVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        for (int i = 0; i < 10; i++)
+        {
+            glm::mat4 objectModel = glm::translate(glm::mat4(1.0f), cubePositions[i]);
+            objectModel = glm::rotate(objectModel, glm::radians(20.0f * i), glm::vec3(1.0f, 0.5f, 0.0f));
+            glm::mat3 objectNormalModel = glm::transpose(glm::inverse(glm::mat3(objectModel)));
+            
+            objectShader.setMatrix4f("model", glm::value_ptr(objectModel));
+            objectShader.setMatrix3f("normalModel", glm::value_ptr(objectNormalModel));
+
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
 
         lightShader.use();
         lightShader.setMatrix4f("view", glm::value_ptr(view));

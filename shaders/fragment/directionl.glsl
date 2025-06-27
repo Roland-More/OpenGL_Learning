@@ -7,7 +7,7 @@ struct Material {
 };
 
 struct Light {
-    vec3 position;
+    vec3 direction;
 
     vec3 ambient;
     vec3 diffuse;
@@ -28,7 +28,7 @@ uniform vec3 viewPos;
 void main()
 {
     // General
-    vec3 lightDir = normalize(light.position - FragPos);
+    vec3 lightDir = normalize(-light.direction);
     vec3 norm = normalize(Normal);
 
     // Ambient
