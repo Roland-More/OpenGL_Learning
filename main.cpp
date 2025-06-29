@@ -22,8 +22,8 @@ void processInput(GLFWwindow* window);
 
 
 // Settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+float SCR_WIDTH = 800.0f;
+float SCR_HEIGHT = 600.0f;
 
 // For sphere rendering
 const unsigned int SEGMENTS = 20;
@@ -88,7 +88,7 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader objectShader("shaders/vertex/3d_lphong.glsl","shaders/fragment/point.glsl");
+    Shader objectShader("shaders/vertex/3d_lphong.glsl","shaders/fragment/spotlightl.glsl");
     Shader lightShader("shaders/vertex/3d.glsl","shaders/fragment/ucol.glsl");
 
     // Declare uniforms
@@ -100,13 +100,13 @@ int main()
     objectShader.setInt("material.diffuse", 0);
     objectShader.setInt("material.specular", 1);
     objectShader.setFloat("material.shininess", 32.0f);
-    objectShader.setVec3("light.position", lightPos);
     objectShader.setVec3("light.ambient",  0.2f, 0.2f, 0.2f);
     objectShader.setVec3("light.diffuse",  0.5f, 0.5f, 0.5f); // darken diffuse light a bit
     objectShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
-    objectShader.setFloat("light.constant",  1.0f);
-    objectShader.setFloat("light.linear",    0.09f);
-    objectShader.setFloat("light.quadratic", 0.032f);
+    objectShader.setVec3("light.position",  camera.Position);
+    objectShader.setVec3("light.direction", camera.Front);
+    objectShader.setFloat("light.cutOff", glm::cos(glm::radians(12.5f)));
+    objectShader.setFloat("light.outerCutOff", glm::cos(glm::radians(17.5f)));
 
     lightShader.use();
     lightShader.setVec3("color", lightColor);
@@ -347,7 +347,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Projection matrix
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), 800.0f / 600.0f, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
 
         // View matrix = camera
         glm::mat4 view = camera.GetViewMatrix();
@@ -366,6 +366,8 @@ int main()
         objectShader.use();
         objectShader.setMatrix4f("view", glm::value_ptr(view));
         objectShader.setMatrix4f("projection", glm::value_ptr(projection));
+        objectShader.setVec3("light.position",  camera.Position);
+        objectShader.setVec3("light.direction", camera.Front);
         objectShader.setVec3("viewPos", camera.Position);
 
         glBindVertexArray(objectVAO);
@@ -382,14 +384,14 @@ int main()
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
-        lightShader.use();
-        lightShader.setMatrix4f("view", glm::value_ptr(view));
-        lightShader.setMatrix4f("projection", glm::value_ptr(projection));
-        lightShader.setMatrix4f("model", glm::value_ptr(lightModel));
-        lightShader.setVec3("color", lightColor);
+        // lightShader.use();
+        // lightShader.setMatrix4f("view", glm::value_ptr(view));
+        // lightShader.setMatrix4f("projection", glm::value_ptr(projection));
+        // lightShader.setMatrix4f("model", glm::value_ptr(lightModel));
+        // lightShader.setVec3("color", lightColor);
 
-        glBindVertexArray(lightVAO);
-        glDrawElements(GL_TRIANGLE_STRIP, 6 * SEGMENTS * SEGMENTS, GL_UNSIGNED_INT, 0);
+        // glBindVertexArray(lightVAO);
+        // glDrawElements(GL_TRIANGLE_STRIP, 6 * SEGMENTS * SEGMENTS, GL_UNSIGNED_INT, 0);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -458,5 +460,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     // make sure the viewport matches the new window dimensions; note that width and 
     // height will be significantly larger than specified on retina displays.
+    SCR_WIDTH = (float)width;
+    SCR_HEIGHT = (float)height;
     glViewport(0, 0, width, height);
 }
