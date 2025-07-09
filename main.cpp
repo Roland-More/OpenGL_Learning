@@ -10,10 +10,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <stb/image_load.cpp>
-
 #include "shader.h"
 #include "camera.h"
+#include "mesh.h"
+#include "texture_loader.h"
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height); // Update viewportu
@@ -288,53 +288,8 @@ int main()
     // ----------------------------------------------------------------------------
 
     // Generate textures and its object and bind it
-    unsigned int objectDiffuseMap, objectSpecularMap;
-    glGenTextures(1, &objectDiffuseMap);
-
-    glBindTexture(GL_TEXTURE_2D, objectDiffuseMap);
-
-    // Texture wrapping
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-
-    // Texture filtering with mipmaps
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-
-    // Load image
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true);  
-    unsigned char *data = stbi_load("images/container.png", &width, &height, &nrChannels, 0);
-
-    // Set the image as the openGL objects data and generate a mipmap for it
-
-    // The first argument specifies the texture target
-    // The second argument specifies the mipmap level for which we want to create a texture for
-    // The third argument tells OpenGL in what kind of format we want to store the texture
-    // The 4th and 5th argument sets the width and height of the resulting texture
-    // The next argument should always be 0 (some legacy stuff).
-    // The 7th and 8th argument specify the format and datatype of the source image
-    // The last argument is the actual image data
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    // Free the image data after its loaded into GL object
-    stbi_image_free(data);
-
-    glGenTextures(1, &objectSpecularMap);
-    glBindTexture(GL_TEXTURE_2D, objectSpecularMap);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-
-    data = stbi_load("images/container_spec.png", &width, &height, &nrChannels, 0);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    stbi_image_free(data);
+    unsigned int objectDiffuseMap = TextureFromFile("images/container.png");
+    unsigned int objectSpecularMap = TextureFromFile("images/container_spec.png");
 
     // Set the texture number (pointer)
     glActiveTexture(GL_TEXTURE0);
