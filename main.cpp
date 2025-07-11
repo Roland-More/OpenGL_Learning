@@ -96,10 +96,6 @@ int main()
 
     Model backpack((char*)"resources/objects/Backpack/backpack.obj", true);
 
-    Model building001((char*)"resources/objects/Residential_buildings/Export Files/Residential Buildings 001.obj", false);
-
-    Model Porsche911((char*)"resources/objects/Porsche911/scene.gltf", false);
-
     // Declare uniforms
     // glm::vec3 lightColor(0.89f, 0.376f, 0.008f);
 
