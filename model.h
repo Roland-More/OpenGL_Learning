@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstring>
 
 #include <glm/glm.hpp>
 
@@ -18,25 +19,26 @@
 class Model 
 {
 public:
-    Model(char *path)
+    Model(char *path, bool flipUVs)
     {
-        loadModel(path);
+        loadModel(path, flipUVs);
     }
-    void Draw(Shader &shader)
+    void Draw(Shader& shader)
     {
         for (unsigned int i = 0; i < meshes.size(); i++)
             meshes[i].Draw(shader);
-    }  
-    
+    }
+
 private:
     // model data
     std::vector<Mesh> meshes;
+    std::vector<Texture> textures_loaded;
     std::string directory;
 
-    void loadModel(std::string path)
+    void loadModel(std::string path, bool flipUVs)
     {
         Assimp::Importer import;
-        const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);	
+        const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate | (flipUVs ? aiProcess_FlipUVs : 0));
         
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) 
         {
@@ -46,6 +48,8 @@ private:
         directory = path.substr(0, path.find_last_of('/'));
 
         processNode(scene->mRootNode, scene);
+
+        std::cout << "Finished loading model: " << path << '\n';
     }
 
     void processNode(aiNode *node, const aiScene *scene)
@@ -128,19 +132,33 @@ private:
                             std::string typeName)
     {
         std::vector<Texture> textures;
-        for(unsigned int i = 0; i < mat->GetTextureCount(type); i++)
+        for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
         {
             aiString str;
             mat->GetTexture(type, i, &str);
 
-            Texture texture;
-            texture.id = TextureFromFile(str.C_Str(), directory);
-            texture.type = typeName;
-            texture.path = str;
-            textures.push_back(texture);
+            bool skip = false;
+            for (unsigned int j = 0; j < textures_loaded.size(); j++)
+            {
+                if (std::strcmp(textures_loaded[j].path.data(), str.C_Str()) == 0)
+                {
+                    textures.push_back(textures_loaded[j]);
+                    skip = true;
+                    break;
+                }
+            }
+            if (!skip)
+            {
+                Texture texture;
+                texture.id = TextureFromFile(str.C_Str(), directory);
+                texture.type = typeName;
+                texture.path = str.C_Str();
+                textures.push_back(texture);
+                textures_loaded.push_back(texture); // add to loaded textures
+            }
         }
         return textures;
-    }  
+    }
 };
 
 #endif

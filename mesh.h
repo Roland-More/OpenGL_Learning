@@ -20,7 +20,7 @@ struct Vertex {
 struct Texture {
     unsigned int id;
     std::string type;
-    aiString path;
+    std::string path;
 };
 
 class Mesh
@@ -40,19 +40,19 @@ public:
         setupMesh();
     }
 
-    void Draw(Shader &shader) 
+    void Draw(Shader &shader)
     {
         unsigned int diffuseNr = 1;
         unsigned int specularNr = 1;
-        for(unsigned int i = 0; i < textures.size(); i++)
+        for (unsigned int i = 0; i < textures.size(); i++)
         {
             glActiveTexture(GL_TEXTURE0 + i); // activate proper texture unit before binding
             // retrieve texture number (the N in diffuse_textureN)
             std::string number;
             std::string name = textures[i].type;
-            if(name == "texture_diffuse")
+            if (name == "texture_diffuse")
                 number = std::to_string(diffuseNr++);
-            else if(name == "texture_specular")
+            else if (name == "texture_specular")
                 number = std::to_string(specularNr++);
 
             shader.setInt(("material." + name + number).c_str(), i);

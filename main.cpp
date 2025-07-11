@@ -12,7 +12,7 @@
 
 #include "shader.h"
 #include "camera.h"
-#include "mesh.h"
+#include "model.h"
 #include "texture_loader.h"
 
 
@@ -81,6 +81,9 @@ int main()
         return -1;
     }
 
+    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
+    stbi_set_flip_vertically_on_load(true);
+
     // configure global opengl state
     // -----------------------------
 
@@ -89,165 +92,160 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader objectShader("shaders/vertex/3d_lphong.glsl","shaders/fragment/multilight.glsl");
-    Shader lightShader("shaders/vertex/3d.glsl","shaders/fragment/ucol.glsl");
+    Shader modelShader("shaders/vertex/3d_model.glsl","shaders/fragment/model.glsl");
+
+    Model backpack((char*)"resources/objects/Backpack/backpack.obj", true);
+
+    Model building001((char*)"resources/objects/Residential_buildings/Export Files/Residential Buildings 001.obj", false);
+
+    Model Porsche911((char*)"resources/objects/Porsche911/scene.gltf", false);
 
     // Declare uniforms
-    glm::vec3 lightColor(0.89f, 0.376f, 0.008f);
-
-    glm::vec3 pointLightPositions[] = {
-        glm::vec3( 0.7f,  0.2f,  2.0f),
-        glm::vec3( 2.3f, -3.3f, -4.0f),
-        glm::vec3(-4.0f,  2.0f, -12.0f),
-        glm::vec3( 0.0f,  0.0f, -3.0f)
-    };
+    // glm::vec3 lightColor(0.89f, 0.376f, 0.008f);
 
     // Set uniforms
-    objectShader.use();
-    objectShader.setInt("material.diffuse", 0);
-    objectShader.setInt("material.specular", 1);
-    objectShader.setFloat("material.shininess", 32.0f);
-    objectShader.setVec3("ambient",  0.1f, 0.1f, 0.1f);
+    // objectShader.use();
+    // objectShader.setInt("material.diffuse", 0);
+    // objectShader.setInt("material.specular", 1);
+    // objectShader.setFloat("material.shininess", 32.0f);
+    // objectShader.setVec3("ambient",  0.1f, 0.1f, 0.1f);
 
-    objectShader.setVec3("dirLight.direction", 0.2f,-1.0f, 0.3f);
-    objectShader.setVec3("dirLight.diffuse",  0.0f, 0.0f, 0.0f);
-    objectShader.setVec3("dirLight.specular", 0.0f, 0.0f, 0.0f);
+    // objectShader.setVec3("dirLight.direction", 0.2f,-1.0f, 0.3f);
+    // objectShader.setVec3("dirLight.diffuse",  0.0f, 0.0f, 0.0f);
+    // objectShader.setVec3("dirLight.specular", 0.0f, 0.0f, 0.0f);
 
-    for (int i = 0; i < 4; i++)
-    {
-        std::string index = std::to_string(i);
+    // for (int i = 0; i < 4; i++)
+    // {
+    //     std::string index = std::to_string(i);
         
-        objectShader.setVec3("pointLights[" + index + "].position", pointLightPositions[i]);
-        objectShader.setFloat("pointLights[" + index + "].constant", 1.0f);
-        objectShader.setFloat("pointLights[" + index + "].linear", 0.35f);
-        objectShader.setFloat("pointLights[" + index + "].quadratic", 0.44f);
-        objectShader.setVec3("pointLights[" + index + "].diffuse",  0.445f, 0.188f, 0.004f);
-        objectShader.setVec3("pointLights[" + index + "].specular", 0.89f, 0.376f, 0.008f);
-    }
+    //     objectShader.setVec3("pointLights[" + index + "].position", pointLightPositions[i]);
+    //     objectShader.setFloat("pointLights[" + index + "].constant", 1.0f);
+    //     objectShader.setFloat("pointLights[" + index + "].linear", 0.35f);
+    //     objectShader.setFloat("pointLights[" + index + "].quadratic", 0.44f);
+    //     objectShader.setVec3("pointLights[" + index + "].diffuse",  0.445f, 0.188f, 0.004f);
+    //     objectShader.setVec3("pointLights[" + index + "].specular", 0.89f, 0.376f, 0.008f);
+    // }
 
-    objectShader.setVec3("spotLight.position", camera.Position);
-    objectShader.setVec3("spotLight.direction", camera.Front);
-    objectShader.setFloat("spotLight.constant", 1.0f);
-    objectShader.setFloat("spotLight.linear", 0.22f);
-    objectShader.setFloat("spotLight.quadratic", 0.20f);
-    objectShader.setFloat("spotLight.cutOff", std::cos(glm::radians(12.5f)));
-    objectShader.setFloat("spotLight.outerCutOff", std::cos(glm::radians(17.5f)));
-    objectShader.setVec3("spotLight.diffuse",  0.445f, 0.188f, 0.004f);
-    objectShader.setVec3("spotLight.specular", 0.89f, 0.376f, 0.008f);
-
-    lightShader.use();
-    lightShader.setVec3("color", lightColor);
+    // objectShader.setVec3("spotLight.position", camera.Position);
+    // objectShader.setVec3("spotLight.direction", camera.Front);
+    // objectShader.setFloat("spotLight.constant", 1.0f);
+    // objectShader.setFloat("spotLight.linear", 0.22f);
+    // objectShader.setFloat("spotLight.quadratic", 0.20f);
+    // objectShader.setFloat("spotLight.cutOff", std::cos(glm::radians(12.5f)));
+    // objectShader.setFloat("spotLight.outerCutOff", std::cos(glm::radians(17.5f)));
+    // objectShader.setVec3("spotLight.diffuse",  0.445f, 0.188f, 0.004f);
+    // objectShader.setVec3("spotLight.specular", 0.89f, 0.376f, 0.008f);
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
 
     // Vertices with normal vectors
-    float cubeVertices[] = {
-        // positions          // normals           // texture coords
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+    // float cubeVertices[] = {
+    //     // positions          // normals           // texture coords
+    //     -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+    //     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
+    //     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+    //     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+    //     -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
+    //     -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
 
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+    //     -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+    //     0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
+    //     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+    //     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+    //     -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
+    //     -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
 
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+    //     -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+    //     -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+    //     -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+    //     -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+    //     -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+    //     -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
 
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+    //     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+    //     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+    //     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+    //     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+    //     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+    //     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
 
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+    //     -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+    //     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
+    //     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+    //     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+    //     -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
+    //     -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
 
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
-    };
+    //     -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
+    //     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
+    //     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+    //     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+    //     -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
+    //     -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
+    // };
 
-    glm::vec3 cubePositions[] = {
-        glm::vec3( 0.0f,  0.0f,  0.0f),
-        glm::vec3( 2.0f,  5.0f, -15.0f),
-        glm::vec3(-1.5f, -2.2f, -2.5f),
-        glm::vec3(-3.8f, -2.0f, -12.3f),
-        glm::vec3( 2.4f, -0.4f, -3.5f),
-        glm::vec3(-1.7f,  3.0f, -7.5f),
-        glm::vec3( 1.3f, -2.0f, -2.5f),
-        glm::vec3( 1.5f,  2.0f, -2.5f),
-        glm::vec3( 1.5f,  0.2f, -1.5f),
-        glm::vec3(-1.3f,  1.0f, -1.5f)
-    };
+    // glm::vec3 cubePositions[] = {
+    //     glm::vec3( 0.0f,  0.0f,  0.0f),
+    //     glm::vec3( 2.0f,  5.0f, -15.0f),
+    //     glm::vec3(-1.5f, -2.2f, -2.5f),
+    //     glm::vec3(-3.8f, -2.0f, -12.3f),
+    //     glm::vec3( 2.4f, -0.4f, -3.5f),
+    //     glm::vec3(-1.7f,  3.0f, -7.5f),
+    //     glm::vec3( 1.3f, -2.0f, -2.5f),
+    //     glm::vec3( 1.5f,  2.0f, -2.5f),
+    //     glm::vec3( 1.5f,  0.2f, -1.5f),
+    //     glm::vec3(-1.3f,  1.0f, -1.5f)
+    // };
 
-    float sphereVertices[3 * (SEGMENTS + 1) * (SEGMENTS + 1)];
-    int index = 0;
-    for (int i = 0; i <= SEGMENTS; ++i) {
-        float phi = glm::pi<float>() * i / SEGMENTS;
-        for (int j = 0; j <= SEGMENTS; ++j) {
-            float theta = glm::two_pi<float>() * j / SEGMENTS;
+    // float sphereVertices[3 * (SEGMENTS + 1) * (SEGMENTS + 1)];
+    // int index = 0;
+    // for (int i = 0; i <= SEGMENTS; ++i) {
+    //     float phi = glm::pi<float>() * i / SEGMENTS;
+    //     for (int j = 0; j <= SEGMENTS; ++j) {
+    //         float theta = glm::two_pi<float>() * j / SEGMENTS;
 
-            float x = RADIUS * std::sin(phi) * std::cos(theta);
-            float y = RADIUS * std::cos(phi);
-            float z = RADIUS * std::sin(phi) * std::sin(theta);
+    //         float x = RADIUS * std::sin(phi) * std::cos(theta);
+    //         float y = RADIUS * std::cos(phi);
+    //         float z = RADIUS * std::sin(phi) * std::sin(theta);
 
-            sphereVertices[index++] = x;
-            sphereVertices[index++] = y;
-            sphereVertices[index++] = z;
-        }
-    }
+    //         sphereVertices[index++] = x;
+    //         sphereVertices[index++] = y;
+    //         sphereVertices[index++] = z;
+    //     }
+    // }
 
-    unsigned int sphereIndices[6 * SEGMENTS * SEGMENTS];
-    index = 0;
-    for (int i = 0; i < SEGMENTS; ++i) {
-        for (int j = 0; j < SEGMENTS; ++j) {
-            int first = i * (SEGMENTS + 1) + j;
-            int second = first + SEGMENTS + 1;
+    // unsigned int sphereIndices[6 * SEGMENTS * SEGMENTS];
+    // index = 0;
+    // for (int i = 0; i < SEGMENTS; ++i) {
+    //     for (int j = 0; j < SEGMENTS; ++j) {
+    //         int first = i * (SEGMENTS + 1) + j;
+    //         int second = first + SEGMENTS + 1;
 
-            sphereIndices[index++] = first;
-            sphereIndices[index++] = second;
-            sphereIndices[index++] = first + 1;
+    //         sphereIndices[index++] = first;
+    //         sphereIndices[index++] = second;
+    //         sphereIndices[index++] = first + 1;
 
-            sphereIndices[index++] = second;
-            sphereIndices[index++] = second + 1;
-            sphereIndices[index++] = first + 1;
-        }
-    }
+    //         sphereIndices[index++] = second;
+    //         sphereIndices[index++] = second + 1;
+    //         sphereIndices[index++] = first + 1;
+    //     }
+    // }
 
     // Generovanie vertex buffer objektu, element buffer objektu a vertex array objektu,
     // ktory uchovava konfiguraciu: EBO, VBO, vertex attribute pointer (ako ma spracovat vertexy)
-    unsigned int objectVAO;
-    unsigned int objectVBO;
-    glGenVertexArrays(1, &objectVAO);
-    glGenBuffers(1, &objectVBO);
+    // unsigned int objectVAO;
+    // unsigned int objectVBO;
+    // glGenVertexArrays(1, &objectVAO);
+    // glGenBuffers(1, &objectVBO);
 
     // Inicializacny kod
     
     // bind the Vertex Array Object first, then bind and set vertex and element buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(objectVAO);
+    // glBindVertexArray(objectVAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, objectVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
+    // glBindBuffer(GL_ARRAY_BUFFER, objectVBO);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
 
     // Nastavime ako ma OpenGL spracovat nase vertex atributy na locations
 
@@ -259,43 +257,43 @@ int main()
     // 6th parameter: The offset from the start of the buffer to the start of the first attribute
 
     // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    // glEnableVertexAttribArray(0);
+    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    // glEnableVertexAttribArray(1);
+    // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    // glEnableVertexAttribArray(2);
 
-    unsigned int lightVAO;
-    unsigned int lightVBO;
-    unsigned int lightEBO;
-    glGenVertexArrays(1, &lightVAO);
-    glGenBuffers(1, &lightVBO);
-    glGenBuffers(1, &lightEBO);
+    // unsigned int lightVAO;
+    // unsigned int lightVBO;
+    // unsigned int lightEBO;
+    // glGenVertexArrays(1, &lightVAO);
+    // glGenBuffers(1, &lightVBO);
+    // glGenBuffers(1, &lightEBO);
     
-    glBindVertexArray(lightVAO);
+    // glBindVertexArray(lightVAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(sphereVertices), sphereVertices, GL_STATIC_DRAW);
+    // glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(sphereVertices), sphereVertices, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphereIndices), sphereIndices, GL_STATIC_DRAW);
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightEBO);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphereIndices), sphereIndices, GL_STATIC_DRAW);
     // set the vertex attribute 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    // glEnableVertexAttribArray(0);
 
     // Configure texturing and load a texture
     // ----------------------------------------------------------------------------
 
     // Generate textures and its object and bind it
-    unsigned int objectDiffuseMap = TextureFromFile("images/container.png");
-    unsigned int objectSpecularMap = TextureFromFile("images/container_spec.png");
+    // unsigned int objectDiffuseMap = TextureFromFile("images/container.png");
+    // unsigned int objectSpecularMap = TextureFromFile("images/container_spec.png");
 
     // Set the texture number (pointer)
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, objectDiffuseMap);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, objectSpecularMap);
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, objectDiffuseMap);
+    // glActiveTexture(GL_TEXTURE1);
+    // glBindTexture(GL_TEXTURE_2D, objectSpecularMap);
 
     // Coordinate systems
     // ------------------
@@ -334,55 +332,14 @@ int main()
         // View matrix = camera
         glm::mat4 view = camera.GetViewMatrix();
 
-        // Model matrix
-        // glm::mat4 objectModel = glm::mat4(1.0f);
+        glm::mat4 model = glm::mat4(1.0f);
 
-        // glm::mat4 lightModel = glm::mat4(1.0f);
-        // lightModel = glm::translate(lightModel, lightPos);
-        // lightModel = glm::scale(lightModel, glm::vec3(0.2f));
+        modelShader.use();
+        modelShader.setMatrix4f("model", glm::value_ptr(model));
+        modelShader.setMatrix4f("projection", glm::value_ptr(projection));
+        modelShader.setMatrix4f("view", glm::value_ptr(view));
 
-        // Normal model matrix
-        // glm::mat3 objectNormalModel = glm::transpose(glm::inverse(glm::mat3(objectModel)));
-
-        // Send to shaders and render
-        objectShader.use();
-        objectShader.setMatrix4f("view", glm::value_ptr(view));
-        objectShader.setMatrix4f("projection", glm::value_ptr(projection));
-        objectShader.setVec3("spotLight.position",  camera.Position);
-        objectShader.setVec3("spotLight.direction", camera.Front);
-        objectShader.setVec3("viewPos", camera.Position);
-
-        glBindVertexArray(objectVAO);
-
-        for (int i = 0; i < 10; i++)
-        {
-            glm::mat4 objectModel = glm::translate(glm::mat4(1.0f), cubePositions[i]);
-            objectModel = glm::rotate(objectModel, glm::radians(20.0f * i), glm::vec3(1.0f, 0.5f, 0.0f));
-            glm::mat3 objectNormalModel = glm::transpose(glm::inverse(glm::mat3(objectModel)));
-            
-            objectShader.setMatrix4f("model", glm::value_ptr(objectModel));
-            objectShader.setMatrix3f("normalModel", glm::value_ptr(objectNormalModel));
-
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-
-        lightShader.use();
-        lightShader.setMatrix4f("view", glm::value_ptr(view));
-        lightShader.setMatrix4f("projection", glm::value_ptr(projection));
-        lightShader.setVec3("color", lightColor);
-
-        glBindVertexArray(lightVAO);
-
-        for (int i = 0; i < 4; i++)
-        {
-            glm::mat4 lightModel = glm::mat4(1.0f);
-            lightModel = glm::translate(lightModel, pointLightPositions[i]);
-            lightModel = glm::scale(lightModel, glm::vec3(0.2f));
-
-            lightShader.setMatrix4f("model", glm::value_ptr(lightModel));
-
-            glDrawElements(GL_TRIANGLE_STRIP, 6 * SEGMENTS * SEGMENTS, GL_UNSIGNED_INT, 0);
-        }
+        backpack.Draw(modelShader);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------

@@ -1,3 +1,6 @@
+#ifndef TEXTURE_LOADER_H
+#define TEXTURE_LOADER_H
+
 #include <string>
 
 #include <glad/glad.h>
@@ -22,10 +25,16 @@ unsigned int TextureFromFile(const char* filename, const std::string directory)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
     // Load image
-    stbi_set_flip_vertically_on_load(true);
     int width, height, nrChannels;
     const std::string path = directory + '/' + filename;
+    
+    std::cout << "Loading image: " << path << '\n';
     unsigned char *data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
+    if (!data)
+    {
+        std::cout << "Failed to load texture" << std::endl;
+        return 0;
+    }
 
     // Get the format based on the extension
     std::string file_ext = filename;
@@ -66,9 +75,13 @@ unsigned int TextureFromFile(const char* path)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
     // Load image
-    stbi_set_flip_vertically_on_load(true);
     int width, height, nrChannels;
     unsigned char *data = stbi_load(path, &width, &height, &nrChannels, 0);
+    if (!data)
+    {
+        std::cout << "Failed to load texture" << std::endl;
+        return 0;
+    }
 
     // Get the format based on the extension
     std::string file_ext = path;
@@ -92,3 +105,5 @@ unsigned int TextureFromFile(const char* path)
 
     return id;
 }
+
+#endif
