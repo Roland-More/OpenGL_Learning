@@ -1,6 +1,6 @@
 #include <iostream>
-#include <string>
-#include <cmath>
+#include <vector>
+#include <map>
 
 // Glad sa importuje pred glfw
 #include <glad/glad.h>
@@ -25,10 +25,6 @@ void processInput(GLFWwindow* window);
 // Settings
 float SCR_WIDTH = 800.0f;
 float SCR_HEIGHT = 600.0f;
-
-// For sphere rendering
-const unsigned int SEGMENTS = 20;
-const float RADIUS = 0.5f;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -81,261 +77,311 @@ int main()
         return -1;
     }
 
-    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(true);
 
     // configure global opengl state
     // -----------------------------
+    glEnable(GL_DEPTH_TEST);
 
-    // Enable depth testing for 3D rendering
-    glEnable(GL_DEPTH_TEST);  
+    // build and compile shaders
+    // -------------------------
+    Shader objectShader("shaders/vertex/3d_tex.glsl", "shaders/fragment/obi_tex.glsl");
+    Shader planeShader("shaders/vertex/3d_tex.glsl", "shaders/fragment/tex_1channelfilter.glsl");
+    Shader screenShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/tex.glsl");
 
-    // Load shader porgrams
+    // Set up a framebuffer
     // --------------------
-    Shader modelShader("shaders/vertex/3d_model.glsl","shaders/fragment/model.glsl");
+    unsigned int fbo;
+    glGenFramebuffers(1, &fbo);
 
-    Model backpack((char*)"resources/objects/Backpack/backpack.obj", true);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-    // Declare uniforms
-    // glm::vec3 lightColor(0.89f, 0.376f, 0.008f);
+    // generate texture
+    unsigned int textureColorbuffer;
+    glGenTextures(1, &textureColorbuffer);
+    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
 
-    // Set uniforms
-    // objectShader.use();
-    // objectShader.setInt("material.diffuse", 0);
-    // objectShader.setInt("material.specular", 1);
-    // objectShader.setFloat("material.shininess", 32.0f);
-    // objectShader.setVec3("ambient",  0.1f, 0.1f, 0.1f);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 
-    // objectShader.setVec3("dirLight.direction", 0.2f,-1.0f, 0.3f);
-    // objectShader.setVec3("dirLight.diffuse",  0.0f, 0.0f, 0.0f);
-    // objectShader.setVec3("dirLight.specular", 0.0f, 0.0f, 0.0f);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    // for (int i = 0; i < 4; i++)
-    // {
-    //     std::string index = std::to_string(i);
-        
-    //     objectShader.setVec3("pointLights[" + index + "].position", pointLightPositions[i]);
-    //     objectShader.setFloat("pointLights[" + index + "].constant", 1.0f);
-    //     objectShader.setFloat("pointLights[" + index + "].linear", 0.35f);
-    //     objectShader.setFloat("pointLights[" + index + "].quadratic", 0.44f);
-    //     objectShader.setVec3("pointLights[" + index + "].diffuse",  0.445f, 0.188f, 0.004f);
-    //     objectShader.setVec3("pointLights[" + index + "].specular", 0.89f, 0.376f, 0.008f);
-    // }
+    glBindTexture(GL_TEXTURE_2D, 0);
 
-    // objectShader.setVec3("spotLight.position", camera.Position);
-    // objectShader.setVec3("spotLight.direction", camera.Front);
-    // objectShader.setFloat("spotLight.constant", 1.0f);
-    // objectShader.setFloat("spotLight.linear", 0.22f);
-    // objectShader.setFloat("spotLight.quadratic", 0.20f);
-    // objectShader.setFloat("spotLight.cutOff", std::cos(glm::radians(12.5f)));
-    // objectShader.setFloat("spotLight.outerCutOff", std::cos(glm::radians(17.5f)));
-    // objectShader.setVec3("spotLight.diffuse",  0.445f, 0.188f, 0.004f);
-    // objectShader.setVec3("spotLight.specular", 0.89f, 0.376f, 0.008f);
+    // attach it to currently bound framebuffer object
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+
+    // // Create a renderbuffer object
+    unsigned int rbo;
+    glGenRenderbuffers(1, &rbo);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);  
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
+    const float cubeVertices[] = {
+        // Back face
+        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // Bottom-left
+        0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-right
+        0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // bottom-right   
+        0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-right
+        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // bottom-left
+        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-left
+        // Front face
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
+        0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
+        0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
+        0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
+        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f, // top-left
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
+        // Left face
+        -0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-left
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // bottom-left
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // bottom-left
+        -0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
+        -0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
+        // Right face
+        0.5f,  0.5f,  0.5f,  0.0f, 1.0f, // top-left
+        0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // bottom-right
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-right         
+        0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // bottom-right
+        0.5f,  0.5f,  0.5f,  0.0f, 1.0f, // top-left
+        0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left     
+        // Bottom face
+        -0.5f, -0.5f, -0.5f,  1.0f, 1.0f, // top-right
+        0.5f, -0.5f, -0.5f,  0.0f, 1.0f, // top-left
+        0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
+        0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
+        -0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
+        -0.5f, -0.5f, -0.5f,  1.0f, 1.0f, // top-right
+        // Top face
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-left
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-right     
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-left
+        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f  // bottom-left        
+    };
+    float planeVertices[] = {
+        // positions          // texture Coords
+         5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
+        -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
+        -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
 
-    // Vertices with normal vectors
-    // float cubeVertices[] = {
-    //     // positions          // normals           // texture coords
-    //     -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-    //     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-    //     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-    //     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-    //     -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-    //     -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-
-    //     -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-    //     0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
-    //     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-    //     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-    //     -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
-    //     -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-
-    //     -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-    //     -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-    //     -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-    //     -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-    //     -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-    //     -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
-    //     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-    //     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-    //     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-    //     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-    //     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-    //     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
-    //     -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-    //     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-    //     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-    //     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-    //     -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-    //     -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-
-    //     -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-    //     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-    //     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-    //     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-    //     -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-    //     -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
-    // };
-
-    // glm::vec3 cubePositions[] = {
-    //     glm::vec3( 0.0f,  0.0f,  0.0f),
-    //     glm::vec3( 2.0f,  5.0f, -15.0f),
-    //     glm::vec3(-1.5f, -2.2f, -2.5f),
-    //     glm::vec3(-3.8f, -2.0f, -12.3f),
-    //     glm::vec3( 2.4f, -0.4f, -3.5f),
-    //     glm::vec3(-1.7f,  3.0f, -7.5f),
-    //     glm::vec3( 1.3f, -2.0f, -2.5f),
-    //     glm::vec3( 1.5f,  2.0f, -2.5f),
-    //     glm::vec3( 1.5f,  0.2f, -1.5f),
-    //     glm::vec3(-1.3f,  1.0f, -1.5f)
-    // };
-
-    // float sphereVertices[3 * (SEGMENTS + 1) * (SEGMENTS + 1)];
-    // int index = 0;
-    // for (int i = 0; i <= SEGMENTS; ++i) {
-    //     float phi = glm::pi<float>() * i / SEGMENTS;
-    //     for (int j = 0; j <= SEGMENTS; ++j) {
-    //         float theta = glm::two_pi<float>() * j / SEGMENTS;
-
-    //         float x = RADIUS * std::sin(phi) * std::cos(theta);
-    //         float y = RADIUS * std::cos(phi);
-    //         float z = RADIUS * std::sin(phi) * std::sin(theta);
-
-    //         sphereVertices[index++] = x;
-    //         sphereVertices[index++] = y;
-    //         sphereVertices[index++] = z;
-    //     }
-    // }
-
-    // unsigned int sphereIndices[6 * SEGMENTS * SEGMENTS];
-    // index = 0;
-    // for (int i = 0; i < SEGMENTS; ++i) {
-    //     for (int j = 0; j < SEGMENTS; ++j) {
-    //         int first = i * (SEGMENTS + 1) + j;
-    //         int second = first + SEGMENTS + 1;
-
-    //         sphereIndices[index++] = first;
-    //         sphereIndices[index++] = second;
-    //         sphereIndices[index++] = first + 1;
-
-    //         sphereIndices[index++] = second;
-    //         sphereIndices[index++] = second + 1;
-    //         sphereIndices[index++] = first + 1;
-    //     }
-    // }
-
-    // Generovanie vertex buffer objektu, element buffer objektu a vertex array objektu,
-    // ktory uchovava konfiguraciu: EBO, VBO, vertex attribute pointer (ako ma spracovat vertexy)
-    // unsigned int objectVAO;
-    // unsigned int objectVBO;
-    // glGenVertexArrays(1, &objectVAO);
-    // glGenBuffers(1, &objectVBO);
-
-    // Inicializacny kod
+         5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
+         5.0f, -0.5f, -5.0f,  2.0f, 2.0f,							
+        -5.0f, -0.5f, -5.0f,  0.0f, 2.0f
+    };
+    float screenVertices[] = {
+        // positions  // texture Coords
+        -1.0f, -1.0f, 0.0f, 0.0f,
+        1.0f, -1.0f, 1.0f, 0.0f,
+        1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, 0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f
+    };
     
-    // bind the Vertex Array Object first, then bind and set vertex and element buffer(s), and then configure vertex attributes(s).
-    // glBindVertexArray(objectVAO);
-
-    // glBindBuffer(GL_ARRAY_BUFFER, objectVBO);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
-
-    // Nastavime ako ma OpenGL spracovat nase vertex atributy na locations
-
-    // 1st parameter: To which location of the shader program will the attribute be sent
-    // 2nd parameter: The size of the attribute
-    // 3rd parameter: Datatype of the attribute items
-    // 4th parameter: Wheter we want to normalize the datatype
-    // 5th parameter: The space from the start of the first attribute to the next one
-    // 6th parameter: The offset from the start of the buffer to the start of the first attribute
-
-    // Position attribute
-    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    // glEnableVertexAttribArray(0);
-    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    // glEnableVertexAttribArray(1);
-    // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    // glEnableVertexAttribArray(2);
-
-    // unsigned int lightVAO;
-    // unsigned int lightVBO;
-    // unsigned int lightEBO;
-    // glGenVertexArrays(1, &lightVAO);
-    // glGenBuffers(1, &lightVBO);
-    // glGenBuffers(1, &lightEBO);
+    // cube VAO
+    unsigned int cubeVAO, cubeVBO;
+    glGenVertexArrays(1, &cubeVAO);
+    glGenBuffers(1, &cubeVBO);
+    glBindVertexArray(cubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glBindVertexArray(0);
+    // plane VAO
+    unsigned int planeVAO, planeVBO;
+    glGenVertexArrays(1, &planeVAO);
+    glGenBuffers(1, &planeVBO);
+    glBindVertexArray(planeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glBindVertexArray(0);
+    // scene VAO
+    unsigned int screenVAO, screenVBO;
+    glGenVertexArrays(1, &screenVAO);
+    glGenBuffers(1, &screenVBO);
+    glBindVertexArray(screenVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(screenVertices), &screenVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glBindVertexArray(0);
     
-    // glBindVertexArray(lightVAO);
+    // load textures
+    // -------------
+    unsigned int cubeTexture  = TextureFromFile("resources/textures/container.jpg");
+    unsigned int planeTexture = TextureFromFile("resources/textures/grass.png");
 
-    // glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(sphereVertices), sphereVertices, GL_STATIC_DRAW);
+    // shader configuration
+    // --------------------
+    objectShader.use();
+    objectShader.setInt("texture0", 0);
+    planeShader.use();
+    planeShader.setInt("texture0", 0);
+    planeShader.setVec3("colorFilter", 0.0f, 0.8f, 0.0f);
+    screenShader.use();
+    screenShader.setInt("texture0", 0);
 
-    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightEBO);
-    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphereIndices), sphereIndices, GL_STATIC_DRAW);
-    // set the vertex attribute 
-    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    // glEnableVertexAttribArray(0);
-
-    // Configure texturing and load a texture
-    // ----------------------------------------------------------------------------
-
-    // Generate textures and its object and bind it
-    // unsigned int objectDiffuseMap = TextureFromFile("images/container.png");
-    // unsigned int objectSpecularMap = TextureFromFile("images/container_spec.png");
-
-    // Set the texture number (pointer)
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, objectDiffuseMap);
-    // glActiveTexture(GL_TEXTURE1);
-    // glBindTexture(GL_TEXTURE_2D, objectSpecularMap);
-
-    // Coordinate systems
-    // ------------------
-
-    // Matrices that dont change are defined and sent to the shader here
-
-    // projection matrix
-
-    // view matrix
-
-    // model matrix
-    
-    // Rendering loop
-    // --------------
-    while (!glfwWindowShouldClose(window))
+    // render loop
+    // -----------
+    while(!glfwWindowShouldClose(window))
     {
-        // Calculate delta time
-        float currentFrame = glfwGetTime();
+        // per-frame time logic
+        // --------------------
+        const float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // Input
+        // input
         // -----
         processInput(window);
 
-        // Rendering
-        // ---------
+        // render
+        // ------
 
-        // Nastavenie pozadia
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        // Render to the new framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
 
-        // Projection matrix
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
-
-        // View matrix = camera
         glm::mat4 view = camera.GetViewMatrix();
-
         glm::mat4 model = glm::mat4(1.0f);
 
-        modelShader.use();
-        modelShader.setMatrix4f("model", glm::value_ptr(model));
-        modelShader.setMatrix4f("projection", glm::value_ptr(projection));
-        modelShader.setMatrix4f("view", glm::value_ptr(view));
+        // cubes
+        objectShader.use();
+        objectShader.setMat4("projection", projection);
+        objectShader.setMat4("view", view);
+        glActiveTexture(GL_TEXTURE0);
 
-        backpack.Draw(modelShader);
+        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
+        objectShader.setMat4("model", model);
+        glBindVertexArray(cubeVAO);
+        glBindTexture(GL_TEXTURE_2D, cubeTexture);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
+        objectShader.setMat4("model", model);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // floor
+        model = glm::mat4(1.0f);
+        planeShader.use();
+        planeShader.setMat4("projection", projection);
+        planeShader.setMat4("view", view);
+        planeShader.setMat4("model", model);
+        glBindVertexArray(planeVAO);
+        glBindTexture(GL_TEXTURE_2D, planeTexture);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindVertexArray(0);
+
+        // Render to the default framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDisable(GL_DEPTH_TEST);
+
+        model = glm::mat4(1.0f);
+        screenShader.use();
+        screenShader.setMat4("model", model);
+
+        glBindVertexArray(screenVAO);
+        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindVertexArray(0);
+
+        // Render to the new framebuffer (render the back view)
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+
+        camera.Front = -camera.Front;
+        view = camera.GetViewMatrix();
+        camera.Front = -camera.Front;
+
+        projection = glm::perspective(glm::radians(camera.Zoom), (1.5f * SCR_WIDTH) / SCR_HEIGHT, 0.1f, 100.0f);
+        model = glm::mat4(1.0f);
+
+        // cubes
+        objectShader.use();
+        objectShader.setMat4("projection", projection);
+        objectShader.setMat4("view", view);
+        glActiveTexture(GL_TEXTURE0);
+
+        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
+        objectShader.setMat4("model", model);
+        glBindVertexArray(cubeVAO);
+        glBindTexture(GL_TEXTURE_2D, cubeTexture);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
+        objectShader.setMat4("model", model);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // floor
+        model = glm::mat4(1.0f);
+        planeShader.use();
+        planeShader.setMat4("projection", projection);
+        planeShader.setMat4("view", view);
+        planeShader.setMat4("model", model);
+        glBindVertexArray(planeVAO);
+        glBindTexture(GL_TEXTURE_2D, planeTexture);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindVertexArray(0);
+
+        // Render to the default framebuffer (rear view mirror)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_DEPTH_TEST);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.8f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.3f, 0.2f, 1.0f));
+        screenShader.use();
+        screenShader.setMat4("model", model);
+
+        glBindVertexArray(screenVAO);
+        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindVertexArray(0);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------

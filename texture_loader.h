@@ -17,8 +17,8 @@ unsigned int TextureFromFile(const char* filename, const std::string directory)
     glBindTexture(GL_TEXTURE_2D, id);
 
     // Texture wrapping
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     // Texture filtering with mipmaps
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -36,10 +36,20 @@ unsigned int TextureFromFile(const char* filename, const std::string directory)
         return 0;
     }
 
-    // Get the format based on the extension
-    std::string file_ext = filename;
-    file_ext = file_ext.substr(file_ext.find_last_of('.'));
-    const int format = file_ext == ".png" ? GL_RGBA : GL_RGB;
+    // Get the format based on the number of channels
+    GLenum format;
+    if (nrChannels == 1)
+        format = GL_RED;
+    else if (nrChannels == 3)
+        format = GL_RGB;
+    else if (nrChannels == 4)
+        format = GL_RGBA;
+    else
+    {
+        std::cout << "Unsupported texture format" << std::endl;
+        stbi_image_free(data);
+        return 0;
+    }
 
     // Set the image as the openGL objects data and generate a mipmap for it
 
@@ -61,19 +71,6 @@ unsigned int TextureFromFile(const char* filename, const std::string directory)
 
 unsigned int TextureFromFile(const char* path)
 {
-    unsigned int id;
-    glGenTextures(1, &id);
-
-    glBindTexture(GL_TEXTURE_2D, id);
-
-    // Texture wrapping
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-
-    // Texture filtering with mipmaps
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-
     // Load image
     int width, height, nrChannels;
     unsigned char *data = stbi_load(path, &width, &height, &nrChannels, 0);
@@ -83,10 +80,33 @@ unsigned int TextureFromFile(const char* path)
         return 0;
     }
 
-    // Get the format based on the extension
-    std::string file_ext = path;
-    file_ext = file_ext.substr(file_ext.find_last_of('.'));
-    const int format = file_ext == ".png" ? GL_RGBA : GL_RGB;
+    // Get the format based on the number of channels
+    GLenum format;
+    if (nrChannels == 1)
+        format = GL_RED;
+    else if (nrChannels == 3)
+        format = GL_RGB;
+    else if (nrChannels == 4)
+        format = GL_RGBA;
+    else
+    {
+        std::cout << "Unsupported texture format" << std::endl;
+        stbi_image_free(data);
+        return 0;
+    }
+
+    unsigned int id;
+    glGenTextures(1, &id);
+
+    glBindTexture(GL_TEXTURE_2D, id);
+
+    // Texture wrapping
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+
+    // Texture filtering with mipmaps
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
     // Set the image as the openGL objects data and generate a mipmap for it
 
