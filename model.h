@@ -19,7 +19,7 @@
 class Model 
 {
 public:
-    Model(char *path, bool flipUVs)
+    Model(const char *path, bool flipUVs)
     {
         loadModel(path, flipUVs);
     }

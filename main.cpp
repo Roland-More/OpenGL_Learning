@@ -1,6 +1,5 @@
 #include <iostream>
 #include <vector>
-#include <map>
 
 // Glad sa importuje pred glfw
 #include <glad/glad.h>
@@ -82,115 +81,114 @@ int main()
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
 
     // build and compile shaders
     // -------------------------
-    Shader objectShader("shaders/vertex/3d_tex.glsl", "shaders/fragment/obi_tex.glsl");
-    Shader planeShader("shaders/vertex/3d_tex.glsl", "shaders/fragment/tex_1channelfilter.glsl");
-    Shader screenShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/tex.glsl");
+    Shader objectShader("shaders/vertex/cubemapref.glsl", "shaders/fragment/cubemaprefr.glsl");
+    // Shader planeShader("shaders/vertex/3d_tex.glsl", "shaders/fragment/tex_1channelfilter.glsl");
+    Shader skyboxShader("shaders/vertex/cubemap.glsl", "shaders/fragment/cubemap.glsl");
 
-    // Set up a framebuffer
-    // --------------------
-    unsigned int fbo;
-    glGenFramebuffers(1, &fbo);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-    // generate texture
-    unsigned int textureColorbuffer;
-    glGenTextures(1, &textureColorbuffer);
-    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    // attach it to currently bound framebuffer object
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
-
-    // // Create a renderbuffer object
-    unsigned int rbo;
-    glGenRenderbuffers(1, &rbo);
-
-    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);  
-
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // Load models
+    Model backpack("resources/models/backpack/backpack.obj", true);
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     const float cubeVertices[] = {
-        // Back face
-        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // Bottom-left
-        0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-right
-        0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // bottom-right   
-        0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-right
-        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // bottom-left
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-left
-        // Front face
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
-        0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
-        0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
-        0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f, // top-left
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
-        // Left face
-        -0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-left
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // bottom-left
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // bottom-left
-        -0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
-        -0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
-        // Right face
-        0.5f,  0.5f,  0.5f,  0.0f, 1.0f, // top-left
-        0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // bottom-right
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-right         
-        0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // bottom-right
-        0.5f,  0.5f,  0.5f,  0.0f, 1.0f, // top-left
-        0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left     
-        // Bottom face
-        -0.5f, -0.5f, -0.5f,  1.0f, 1.0f, // top-right
-        0.5f, -0.5f, -0.5f,  0.0f, 1.0f, // top-left
-        0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
-        0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
-        -0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
-        -0.5f, -0.5f, -0.5f,  1.0f, 1.0f, // top-right
-        // Top face
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-left
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
-        0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-right     
-        0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-left
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f  // bottom-left        
-    };
-    float planeVertices[] = {
-        // positions          // texture Coords
-         5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
-        -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
-        -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
 
-         5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
-         5.0f, -0.5f, -5.0f,  2.0f, 2.0f,							
-        -5.0f, -0.5f, -5.0f,  0.0f, 2.0f
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
     };
-    float screenVertices[] = {
-        // positions  // texture Coords
-        -1.0f, -1.0f, 0.0f, 0.0f,
-        1.0f, -1.0f, 1.0f, 0.0f,
-        1.0f, 1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, 0.0f, 1.0f,
-        -1.0f, -1.0f, 0.0f, 0.0f
+    // float planeVertices[] = {
+    //     // positions          // texture Coords
+    //      5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
+    //     -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
+    //     -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
+
+    //      5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
+    //      5.0f, -0.5f, -5.0f,  2.0f, 2.0f,
+    //     -5.0f, -0.5f, -5.0f,  0.0f, 2.0f
+    // };
+    const float skyboxVertices[] = {
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+
+        -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+
+        -1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,
+
+        -1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f, -1.0f,
+        1.0f,  1.0f,  1.0f,
+        1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f, -1.0f,
     };
     
     // cube VAO
@@ -201,49 +199,60 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
     // plane VAO
-    unsigned int planeVAO, planeVBO;
-    glGenVertexArrays(1, &planeVAO);
-    glGenBuffers(1, &planeVBO);
-    glBindVertexArray(planeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
+    // unsigned int planeVAO, planeVBO;
+    // glGenVertexArrays(1, &planeVAO);
+    // glGenBuffers(1, &planeVBO);
+    // glBindVertexArray(planeVAO);
+    // glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
+    // glEnableVertexAttribArray(0);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    // glEnableVertexAttribArray(1);
+    // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    // glBindVertexArray(0);
+    // skybox VAO
+    unsigned int skyboxVAO, skyboxVBO;
+    glGenVertexArrays(1, &skyboxVAO);
+    glGenBuffers(1, &skyboxVBO);
+    glBindVertexArray(skyboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glBindVertexArray(0);
-    // scene VAO
-    unsigned int screenVAO, screenVBO;
-    glGenVertexArrays(1, &screenVAO);
-    glGenBuffers(1, &screenVBO);
-    glBindVertexArray(screenVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(screenVertices), &screenVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glBindVertexArray(0);
     
     // load textures
     // -------------
-    unsigned int cubeTexture  = TextureFromFile("resources/textures/container.jpg");
-    unsigned int planeTexture = TextureFromFile("resources/textures/grass.png");
+    const char* skyboxPaths[6] = {
+        "resources/textures/skybox/px.png",
+        "resources/textures/skybox/nx.png",
+        "resources/textures/skybox/py.png",
+        "resources/textures/skybox/ny.png",
+        "resources/textures/skybox/pz.png",
+        "resources/textures/skybox/nz.png",
+    };
+
+    const unsigned int skyboxTexture = loadCubemap(skyboxPaths);
+    // unsigned int cubeTexture  = TextureFromFile("resources/textures/container.jpg");
+    // unsigned int planeTexture = TextureFromFile("resources/textures/grass.png");
 
     // shader configuration
     // --------------------
     objectShader.use();
-    objectShader.setInt("texture0", 0);
-    planeShader.use();
-    planeShader.setInt("texture0", 0);
-    planeShader.setVec3("colorFilter", 0.0f, 0.8f, 0.0f);
-    screenShader.use();
-    screenShader.setInt("texture0", 0);
+    objectShader.setInt("skybox", 0);
+    // planeShader.use();
+    // planeShader.setInt("texture0", 0);
+    // planeShader.setVec3("colorFilter", 0.0f, 0.8f, 0.0f);
+    skyboxShader.use();
+    skyboxShader.setInt("skybox", 0);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
 
     // render loop
     // -----------
@@ -262,125 +271,56 @@ int main()
         // render
         // ------
 
-        // Render to the new framebuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
 
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
+        const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
+        glm::mat3 normalModel = glm::mat3(1.0f);
 
-        // cubes
-        objectShader.use();
-        objectShader.setMat4("projection", projection);
-        objectShader.setMat4("view", view);
-        glActiveTexture(GL_TEXTURE0);
-
-        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
-        objectShader.setMat4("model", model);
-        glBindVertexArray(cubeVAO);
-        glBindTexture(GL_TEXTURE_2D, cubeTexture);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
-        objectShader.setMat4("model", model);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        // floor
-        model = glm::mat4(1.0f);
-        planeShader.use();
-        planeShader.setMat4("projection", projection);
-        planeShader.setMat4("view", view);
-        planeShader.setMat4("model", model);
-        glBindVertexArray(planeVAO);
-        glBindTexture(GL_TEXTURE_2D, planeTexture);
-
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        glBindVertexArray(0);
-
-        // Render to the default framebuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
-
-        model = glm::mat4(1.0f);
-        screenShader.use();
-        screenShader.setMat4("model", model);
-
-        glBindVertexArray(screenVAO);
-        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        glBindVertexArray(0);
-
-        // Render to the new framebuffer (render the back view)
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-
-        camera.Front = -camera.Front;
+        // backpack
         view = camera.GetViewMatrix();
-        camera.Front = -camera.Front;
+        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
+        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
-        projection = glm::perspective(glm::radians(camera.Zoom), (1.5f * SCR_WIDTH) / SCR_HEIGHT, 0.1f, 100.0f);
-        model = glm::mat4(1.0f);
-
-        // cubes
         objectShader.use();
+        objectShader.setVec3("cameraPos", camera.Position);
         objectShader.setMat4("projection", projection);
         objectShader.setMat4("view", view);
-        glActiveTexture(GL_TEXTURE0);
-
-        model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
         objectShader.setMat4("model", model);
-        glBindVertexArray(cubeVAO);
-        glBindTexture(GL_TEXTURE_2D, cubeTexture);
+        objectShader.setMat3("normalModel", normalModel);
 
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        backpack.Draw(objectShader);
+        // glBindVertexArray(cubeVAO);
+        // glBindTexture(GL_TEXTURE_2D, skyboxTexture);
 
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
-        objectShader.setMat4("model", model);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // floor
-        model = glm::mat4(1.0f);
-        planeShader.use();
-        planeShader.setMat4("projection", projection);
-        planeShader.setMat4("view", view);
-        planeShader.setMat4("model", model);
-        glBindVertexArray(planeVAO);
-        glBindTexture(GL_TEXTURE_2D, planeTexture);
+        // model = glm::mat4(1.0f);
+        // planeShader.use();
+        // planeShader.setMat4("projection", projection);
+        // planeShader.setMat4("view", view);
+        // planeShader.setMat4("model", model);
+        // glBindVertexArray(planeVAO);
+        // glBindTexture(GL_TEXTURE_2D, planeTexture);
 
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        glBindVertexArray(0);
+        // skybox
+        view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
 
-        // Render to the default framebuffer (rear view mirror)
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glDisable(GL_DEPTH_TEST);
+        skyboxShader.use();
+        skyboxShader.setMat4("projection", projection);
+        skyboxShader.setMat4("view", view);
+        
+        glBindVertexArray(skyboxVAO);
+        // glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
 
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.8f, 0.0f));
-        model = glm::scale(model, glm::vec3(0.3f, 0.2f, 1.0f));
-        screenShader.use();
-        screenShader.setMat4("model", model);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        glBindVertexArray(screenVAO);
-        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
+        // End of rendering
         glBindVertexArray(0);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
