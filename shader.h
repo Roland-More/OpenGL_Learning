@@ -130,6 +130,14 @@ public:
     {
         glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(matrix));
     }
+
+public: 
+    static void bindBlock(const Shader& shader, const char* block_name, const unsigned int binding_point)
+    {
+        const unsigned int uniform_block_index = glGetUniformBlockIndex(shader.ID, block_name);
+        glUniformBlockBinding(shader.ID, uniform_block_index, binding_point);
+    }
+
 };
 
 #endif

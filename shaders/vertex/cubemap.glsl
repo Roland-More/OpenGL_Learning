@@ -4,8 +4,10 @@ layout (location = 0) in vec3 aPos;
 
 out vec3 TexCoord;
 
+layout (std140) uniform Projection {
+    mat4 projection;
+};  
 uniform mat4 view;
-uniform mat4 projection;
 
 
 void main()

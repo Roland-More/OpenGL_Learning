@@ -1,5 +1,4 @@
 #include <iostream>
-#include <vector>
 
 // Glad sa importuje pred glfw
 #include <glad/glad.h>
@@ -85,68 +84,81 @@ int main()
 
     // build and compile shaders
     // -------------------------
-    Shader objectShader("shaders/vertex/cubemapref.glsl", "shaders/fragment/cubemaprefr.glsl");
-    // Shader planeShader("shaders/vertex/3d_tex.glsl", "shaders/fragment/tex_1channelfilter.glsl");
+    Shader objectShader("shaders/vertex/3d_tex.glsl", "shaders/fragment/tex.glsl");
+    Shader planeShader("shaders/vertex/3d_tex.glsl", "shaders/fragment/tex_1channelfilter.glsl");
     Shader skyboxShader("shaders/vertex/cubemap.glsl", "shaders/fragment/cubemap.glsl");
 
-    // Load models
-    Model backpack("resources/models/backpack/backpack.obj", true);
+    // Set up uniform bufer objects
+    unsigned int MatricesUBO;
+    glGenBuffers(1, &MatricesUBO);
+
+    glBindBuffer(GL_UNIFORM_BUFFER, MatricesUBO);
+    glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), NULL, GL_STATIC_DRAW);
+
+    glBindBufferRange(GL_UNIFORM_BUFFER, 0, MatricesUBO, 0, 2 * sizeof(glm::mat4));
+    glBindBufferRange(GL_UNIFORM_BUFFER, 1, MatricesUBO, 0, 1 * sizeof(glm::mat4));
+
+    // Link the shader uniform blocks to binding points
+    Shader::bindBlock(objectShader, "Matrices", 0);
+    Shader::bindBlock(planeShader, "Matrices", 0);
+    Shader::bindBlock(skyboxShader, "Projection", 1);
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     const float cubeVertices[] = {
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
+        // Back face
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // Bottom-left
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-right
+        0.5f, -0.5f, -0.5f,  1.0f, 0.0f, // bottom-right         
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-right
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, // bottom-left
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-left
+        // Front face
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
+        0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
+        0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
+        0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
+        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f, // top-left
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
+        // Left face
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // top-right
+        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-left
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, // bottom-left
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, // bottom-left
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-right
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // top-right
+        // Right face
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // top-left
+        0.5f, -0.5f, -0.5f,  0.0f, 1.0f, // bottom-right
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-right         
+        0.5f, -0.5f, -0.5f,  0.0f, 1.0f, // bottom-right
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // top-left
+        0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left     
+        // Bottom face
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, // top-right
+        0.5f, -0.5f, -0.5f,  1.0f, 1.0f, // top-left
+        0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // bottom-left
+        0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // bottom-left
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-right
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, // top-right
+        // Top face
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-left
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
+        0.5f,  0.5f, -0.5f,  1.0f, 1.0f, // top-right     
+        0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, // top-left
+        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f  // bottom-left        
     };
-    // float planeVertices[] = {
-    //     // positions          // texture Coords
-    //      5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
-    //     -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
-    //     -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
+    float planeVertices[] = {
+        // positions          // texture Coords
+         5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
+        -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
+        -5.0f, -0.5f,  5.0f,  0.0f, 0.0f,
 
-    //      5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
-    //      5.0f, -0.5f, -5.0f,  2.0f, 2.0f,
-    //     -5.0f, -0.5f, -5.0f,  0.0f, 2.0f
-    // };
+         5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
+         5.0f, -0.5f, -5.0f,  2.0f, 2.0f,
+        -5.0f, -0.5f, -5.0f,  0.0f, 2.0f
+    };
     const float skyboxVertices[] = {
         -1.0f, -1.0f, -1.0f,
         1.0f, -1.0f, -1.0f,
@@ -199,22 +211,22 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindVertexArray(0);
     // plane VAO
-    // unsigned int planeVAO, planeVBO;
-    // glGenVertexArrays(1, &planeVAO);
-    // glGenBuffers(1, &planeVBO);
-    // glBindVertexArray(planeVAO);
-    // glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
-    // glEnableVertexAttribArray(0);
-    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    // glEnableVertexAttribArray(1);
-    // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    // glBindVertexArray(0);
+    unsigned int planeVAO, planeVBO;
+    glGenVertexArrays(1, &planeVAO);
+    glGenBuffers(1, &planeVBO);
+    glBindVertexArray(planeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), &planeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glBindVertexArray(0);
     // skybox VAO
     unsigned int skyboxVAO, skyboxVBO;
     glGenVertexArrays(1, &skyboxVAO);
@@ -238,21 +250,20 @@ int main()
     };
 
     const unsigned int skyboxTexture = loadCubemap(skyboxPaths);
-    // unsigned int cubeTexture  = TextureFromFile("resources/textures/container.jpg");
-    // unsigned int planeTexture = TextureFromFile("resources/textures/grass.png");
+    const unsigned int cubeTexture = TextureFromFile("resources/textures/container.jpg");
+    const unsigned int planeTexture = TextureFromFile("resources/textures/grass.png", NEAREST);
 
     // shader configuration
     // --------------------
     objectShader.use();
-    objectShader.setInt("skybox", 0);
-    // planeShader.use();
-    // planeShader.setInt("texture0", 0);
-    // planeShader.setVec3("colorFilter", 0.0f, 0.8f, 0.0f);
+    objectShader.setInt("texture0", 0);
+    planeShader.use();
+    planeShader.setInt("texture0", 0);
+    planeShader.setVec3("colorFilter", 0.0f, 0.8f, 0.0f);
     skyboxShader.use();
     skyboxShader.setInt("skybox", 0);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
 
     // render loop
     // -----------
@@ -270,53 +281,55 @@ int main()
 
         // render
         // ------
-
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
-        glm::mat3 normalModel = glm::mat3(1.0f);
 
-        // backpack
-        view = camera.GetViewMatrix();
+        // glBindBuffer(GL_UNIFORM_BUFFER, MatricesUBO);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(projection));
+        glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(view));
+        // glBindBuffer(GL_UNIFORM_BUFFER, 0);
+       
+        // cubes
         model = glm::translate(model, glm::vec3(-1.0f, 0.0f, -1.0f));
-        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
         objectShader.use();
-        objectShader.setVec3("cameraPos", camera.Position);
-        objectShader.setMat4("projection", projection);
-        objectShader.setMat4("view", view);
         objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
 
-        backpack.Draw(objectShader);
-        // glBindVertexArray(cubeVAO);
-        // glBindTexture(GL_TEXTURE_2D, skyboxTexture);
+        glBindVertexArray(cubeVAO);
+        glBindTexture(GL_TEXTURE_2D, cubeTexture);
 
-        // glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(1.5f, 0.0f, 0.0f));
+
+        objectShader.setMat4("model", model);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // floor
-        // model = glm::mat4(1.0f);
-        // planeShader.use();
-        // planeShader.setMat4("projection", projection);
-        // planeShader.setMat4("view", view);
-        // planeShader.setMat4("model", model);
-        // glBindVertexArray(planeVAO);
-        // glBindTexture(GL_TEXTURE_2D, planeTexture);
+        model = glm::mat4(1.0f);
 
-        // glDrawArrays(GL_TRIANGLES, 0, 6);
+        planeShader.use();
+        planeShader.setMat4("model", model);
+
+        glBindVertexArray(planeVAO);
+        glBindTexture(GL_TEXTURE_2D, planeTexture);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         // skybox
         view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
 
         skyboxShader.use();
-        skyboxShader.setMat4("projection", projection);
         skyboxShader.setMat4("view", view);
         
         glBindVertexArray(skyboxVAO);
-        // glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
