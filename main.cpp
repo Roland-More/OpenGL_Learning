@@ -85,7 +85,8 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader modelShader("shaders/vertex/3d_model_explode.glsl","shaders/fragment/model.glsl", "shaders/geometry/triangle_explode.glsl");
+    Shader modelShader("shaders/vertex/3d_model.glsl","shaders/fragment/model.glsl");
+    Shader normalShader("shaders/vertex/normal_visual.glsl", "shaders/fragment/simple_colors/yellow.glsl", "shaders/geometry/normal_visual.glsl");
 
     // Load models
     Model backpack((char*)"resources/models/backpack/backpack.obj", true);
@@ -120,14 +121,22 @@ int main()
         const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         const glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
+        glm::mat3 normalMat = glm::transpose(glm::inverse(glm::mat3(view * model)));
     
         modelShader.use();
         modelShader.setMat4("projection", projection);
         modelShader.setMat4("view", view);
         modelShader.setMat4("model", model);
-        modelShader.setFloat("time", currentFrame);
 
         backpack.Draw(modelShader);
+
+        normalShader.use();
+        normalShader.setMat4("projection", projection);
+        normalShader.setMat4("view", view);
+        normalShader.setMat4("model", model);
+        normalShader.setMat3("normalMat", normalMat);
+
+        backpack.Draw(normalShader);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
