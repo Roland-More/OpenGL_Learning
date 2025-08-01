@@ -66,6 +66,11 @@ public:
         glBindVertexArray(0);
     }
 
+    unsigned int getVAO()
+    {
+        return VAO;
+    }
+
 private:
     //  render data
     unsigned int VAO, VBO, EBO;

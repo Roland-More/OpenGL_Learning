@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 
 #include <glad/glad.h> // Glad sa importuje pred glfw
 #include <GLFW/glfw3.h>
@@ -86,13 +87,111 @@ int main()
     // Load shader porgrams
     // --------------------
     Shader modelShader("shaders/vertex/3d_model.glsl","shaders/fragment/model.glsl");
-    Shader normalShader("shaders/vertex/normal_visual.glsl", "shaders/fragment/simple_colors/yellow.glsl", "shaders/geometry/normal_visual.glsl");
+    Shader instanceShader("shaders/vertex/3d_instancemodel.glsl","shaders/fragment/model.glsl");
+
+    // Set up uniforms and instancing buffer data
+    unsigned int amount = 100000;
+    glm::mat4 *modelMatrices;
+    modelMatrices = new glm::mat4[amount];
+    srand(glfwGetTime()); // initialize random seed	
+    float radius = 150.0f;
+    float offset = 25.0f;
+    for(unsigned int i = 0; i < amount; i++)
+    {
+        glm::mat4 model = glm::mat4(1.0f);
+        // 1. translation: displace along circle with 'radius' in range [-offset, offset]
+        float angle = (float)i / (float)amount * 360.0f;
+        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float x = sin(angle) * radius + displacement;
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float y = displacement * 0.4f; // keep height of field smaller compared to width of x and z
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float z = cos(angle) * radius + displacement;
+
+        model = glm::translate(model, glm::vec3(x, y, z));
+
+        // 2. scale: scale between 0.05 and 0.25f
+        float scale = (rand() % 20) / 100.0f + 0.05;
+        model = glm::scale(model, glm::vec3(scale));
+
+        // 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
+        float rotAngle = (rand() % 360);
+        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
+
+        // 4. now add to list of matrices
+        modelMatrices[i] = model;
+    }
 
     // Load models
-    Model backpack((char*)"resources/models/backpack/backpack.obj", true);
+    Model planet((char*)"resources/models/planet/planet.obj", true);
+    Model asteroid((char*)"resources/models/asteroid/rock.obj", true);
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
+    const float quadVertices[] = {
+        // positions     // colors
+        -0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
+        0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
+        -0.05f, -0.05f,  0.0f, 0.0f, 1.0f,
+
+        -0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
+        0.05f, -0.05f,  0.0f, 1.0f, 0.0f,   
+        0.05f,  0.05f,  1.0f, 1.0f, 0.0f		    		
+    };
+
+    // quad VAO
+    unsigned int quadVAO, quadVBO, instanceVB;
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    // glGenBuffers(1, &instanceVBO);
+
+    glBindVertexArray(quadVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(0));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+
+    // glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    // glBufferData(GL_ARRAY_BUFFER, sizeofs(glm::vec2) * 100, &translations[0], GL_STATIC_DRAW);
+
+    // glEnableVertexAttribArray(2);
+    // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    // glVertexAttribDivisor(2, 1);
+
+    glBindVertexArray(0);
+
+    // model VBO
+    unsigned int modelVBO;
+    glGenBuffers(1, &modelVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, modelVBO);
+    glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &modelMatrices[0], GL_STATIC_DRAW);
+    
+    for (unsigned int i = 0; i < asteroid.getNumMeshes(); i++)
+    {
+        unsigned int VAO = asteroid.getMeshVAO(i);
+        glBindVertexArray(VAO);
+        // vertex attributes
+        std::size_t vec4Size = sizeof(glm::vec4);
+        glEnableVertexAttribArray(3); 
+        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)0);
+        glEnableVertexAttribArray(4); 
+        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(1 * vec4Size));
+        glEnableVertexAttribArray(5); 
+        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(2 * vec4Size));
+        glEnableVertexAttribArray(6); 
+        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(3 * vec4Size));
+
+        glVertexAttribDivisor(3, 1);
+        glVertexAttribDivisor(4, 1);
+        glVertexAttribDivisor(5, 1);
+        glVertexAttribDivisor(6, 1);
+
+        glBindVertexArray(0);
+    }
 
     // Configure texturing and load a texture
     // ----------------------------------------------------------------------------
@@ -118,26 +217,36 @@ int main()
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
+        const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 600.0f);
         const glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
-        glm::mat3 normalMat = glm::transpose(glm::inverse(glm::mat3(view * model)));
-    
+
         modelShader.use();
         modelShader.setMat4("projection", projection);
         modelShader.setMat4("view", view);
+
+        // planet
+        model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(4.0f, 4.0f, 4.0f));
         modelShader.setMat4("model", model);
 
-        backpack.Draw(modelShader);
+        planet.Draw(modelShader);
 
-        normalShader.use();
-        normalShader.setMat4("projection", projection);
-        normalShader.setMat4("view", view);
-        normalShader.setMat4("model", model);
-        normalShader.setMat3("normalMat", normalMat);
+        // asteroids
+        instanceShader.use();
+        instanceShader.setMat4("projection", projection);
+        instanceShader.setMat4("view", view);
+        for (unsigned int i = 0; i < asteroid.getNumMeshes(); i++)
+        {
+            glBindVertexArray(asteroid.getMeshVAO(i));
+            glDrawElementsInstanced(
+                GL_TRIANGLES, asteroid.getMeshIndicesSize(i), GL_UNSIGNED_INT, 0, amount
+            );
+        }  
 
-        backpack.Draw(normalShader);
-
+        // End of rendering
+        glBindVertexArray(0);
+    
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);

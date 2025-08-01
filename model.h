@@ -29,6 +29,21 @@ public:
             meshes[i].Draw(shader);
     }
 
+    size_t getNumMeshes()
+    {
+        return meshes.size();
+    }
+    
+    size_t getMeshIndicesSize(int index)
+    {
+        return meshes[index].indices.size();
+    }
+
+    unsigned int getMeshVAO(int index)
+    {
+        return meshes[index].getVAO();
+    }
+
 private:
     // model data
     std::vector<Mesh> meshes;
