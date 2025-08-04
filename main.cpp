@@ -34,6 +34,9 @@ bool firstMouse = true;
 float deltaTime = 0.0f;	// Time between current frame and last frame
 float lastFrame = 0.0f; // Time of last frame
 
+// lighting
+bool blinn = true;
+float lastBlinn = 0.0f;
 
 int main()
 {
@@ -43,6 +46,9 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3); 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    // Give buffer pixels more sample points for MSAA
+    // glfwWindowHint(GLFW_SAMPLES, 4);
 
     // Vytvorenie okna
     // ---------------
@@ -82,122 +88,129 @@ int main()
     // -----------------------------
 
     // Enable depth testing for 3D rendering
-    glEnable(GL_DEPTH_TEST);  
+    glEnable(GL_DEPTH_TEST);
+
+    // Enable MSAA (Multi Sample Anti-Aliasing)
+    // glEnable(GL_MULTISAMPLE);
 
     // Load shader porgrams
     // --------------------
-    Shader modelShader("shaders/vertex/3d_model.glsl","shaders/fragment/model.glsl");
-    Shader instanceShader("shaders/vertex/3d_instancemodel.glsl","shaders/fragment/model.glsl");
+    Shader sourceShader("shaders/vertex/3d.glsl","shaders/fragment/simple_colors/white.glsl");
+    Shader objectShader("shaders/vertex/lighting/3d_lphong.glsl", "shaders/fragment/lighting/gc_blinn-pointl.glsl");
 
     // Set up uniforms and instancing buffer data
-    unsigned int amount = 100000;
-    glm::mat4 *modelMatrices;
-    modelMatrices = new glm::mat4[amount];
-    srand(glfwGetTime()); // initialize random seed	
-    float radius = 150.0f;
-    float offset = 25.0f;
-    for(unsigned int i = 0; i < amount; i++)
-    {
-        glm::mat4 model = glm::mat4(1.0f);
-        // 1. translation: displace along circle with 'radius' in range [-offset, offset]
-        float angle = (float)i / (float)amount * 360.0f;
-        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float x = sin(angle) * radius + displacement;
-        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float y = displacement * 0.4f; // keep height of field smaller compared to width of x and z
-        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-        float z = cos(angle) * radius + displacement;
-
-        model = glm::translate(model, glm::vec3(x, y, z));
-
-        // 2. scale: scale between 0.05 and 0.25f
-        float scale = (rand() % 20) / 100.0f + 0.05;
-        model = glm::scale(model, glm::vec3(scale));
-
-        // 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
-        float rotAngle = (rand() % 360);
-        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
-
-        // 4. now add to list of matrices
-        modelMatrices[i] = model;
-    }
-
+    glm::vec3 lightPosition = {0.0f, 1.0f, 0.0f};
+    
     // Load models
-    Model planet((char*)"resources/models/planet/planet.obj", true);
-    Model asteroid((char*)"resources/models/asteroid/rock.obj", true);
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
-    const float quadVertices[] = {
-        // positions     // colors
-        -0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
-        0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
-        -0.05f, -0.05f,  0.0f, 0.0f, 1.0f,
-
-        -0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
-        0.05f, -0.05f,  0.0f, 1.0f, 0.0f,   
-        0.05f,  0.05f,  1.0f, 1.0f, 0.0f		    		
+    const float cubeVertices[] = {
+        // Back face
+        -0.5f, -0.5f, -0.5f,
+        0.5f,  0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,
+        // Front face
+        -0.5f, -0.5f,  0.5f,
+        0.5f, -0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+        // Left face
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        // Right face
+        0.5f,  0.5f,  0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f,  0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f,  0.5f,  0.5f,
+        0.5f, -0.5f,  0.5f,
+        // Bottom face
+        -0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f,  0.5f,
+        0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f, -0.5f,
+        // Top face
+        -0.5f,  0.5f, -0.5f,
+        0.5f,  0.5f,  0.5f,
+        0.5f,  0.5f, -0.5f,
+        0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f,  0.5f,  0.5f,
     };
 
-    // quad VAO
-    unsigned int quadVAO, quadVBO, instanceVB;
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(1, &quadVBO);
-    // glGenBuffers(1, &instanceVBO);
+    const float floorVertices[] = {
+        -5.0f,  0.0f, -5.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f,
+        5.0f,  0.0f,  5.0f,   0.0f, 1.0f, 0.0f,  2.0f, 2.0f,
+        5.0f,  0.0f, -5.0f,   0.0f, 1.0f, 0.0f,  2.0f, 0.0f,
+        5.0f,  0.0f,  5.0f,   0.0f, 1.0f, 0.0f,  2.0f, 2.0f,
+        -5.0f,  0.0f, -5.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f,
+        -5.0f,  0.0f,  5.0f,  0.0f, 1.0f, 0.0f,  0.0f, 2.0f,
+    };
+    
+    // Configure texturing and load a texture
+    // ----------------------------------------------------------------------------
+    unsigned int floorTextureGC = TextureFromFile("resources/textures/floor.jpg", GAMMA_CORRECTED);
+    unsigned int floorTexture = TextureFromFile("resources/textures/floor.jpg");
 
-    glBindVertexArray(quadVAO);
+    // cube VAO
+    unsigned int cubeVAO, cubeVBO;
+    glGenVertexArrays(1, &cubeVAO);
+    glGenBuffers(1, &cubeVBO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+    glBindVertexArray(cubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(0));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    // floor VAO
+    unsigned int floorVAO, floorVBO;
+    glGenVertexArrays(1, &floorVAO);
+    glGenBuffers(1, &floorVBO);
+
+    glBindVertexArray(floorVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, floorVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(floorVertices), floorVertices, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
-
-    // glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    // glBufferData(GL_ARRAY_BUFFER, sizeofs(glm::vec2) * 100, &translations[0], GL_STATIC_DRAW);
-
-    // glEnableVertexAttribArray(2);
-    // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
-    // glVertexAttribDivisor(2, 1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
     glBindVertexArray(0);
 
-    // model VBO
-    unsigned int modelVBO;
-    glGenBuffers(1, &modelVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, modelVBO);
-    glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &modelMatrices[0], GL_STATIC_DRAW);
-    
-    for (unsigned int i = 0; i < asteroid.getNumMeshes(); i++)
-    {
-        unsigned int VAO = asteroid.getMeshVAO(i);
-        glBindVertexArray(VAO);
-        // vertex attributes
-        std::size_t vec4Size = sizeof(glm::vec4);
-        glEnableVertexAttribArray(3); 
-        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)0);
-        glEnableVertexAttribArray(4); 
-        glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(1 * vec4Size));
-        glEnableVertexAttribArray(5); 
-        glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(2 * vec4Size));
-        glEnableVertexAttribArray(6); 
-        glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(3 * vec4Size));
-
-        glVertexAttribDivisor(3, 1);
-        glVertexAttribDivisor(4, 1);
-        glVertexAttribDivisor(5, 1);
-        glVertexAttribDivisor(6, 1);
-
-        glBindVertexArray(0);
-    }
-
-    // Configure texturing and load a texture
-    // ----------------------------------------------------------------------------
-
     // Configure shaders
-    modelShader.use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, floorTextureGC);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, floorTexture);
+
+    objectShader.use();
+    objectShader.setVec3("material.specular", 1.0f, 1.0f, 1.0f);
+    objectShader.setFloat("material.shininess", 32.0f);
+
+    objectShader.setVec3("light.position", lightPosition);
+    objectShader.setVec3("light.ambient", 0.1f, 0.1f, 0.1f);
+    objectShader.setVec3("light.diffuse", 0.75f, 0.75f, 0.75f);
+    objectShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+    objectShader.setFloat("light.constant", 1.0f);
+    objectShader.setFloat("light.linear", 0.35f);
+    objectShader.setFloat("light.quadratic", 0.44f);
     
     // Rendering loop
     // --------------
@@ -217,32 +230,45 @@ int main()
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 600.0f);
+        const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         const glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
+        glm::mat3 normalModel = glm::mat3(1.0f);
 
-        modelShader.use();
-        modelShader.setMat4("projection", projection);
-        modelShader.setMat4("view", view);
+        // light source
+        model = glm::translate(model, lightPosition);
+        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
 
-        // planet
-        model = glm::translate(model, glm::vec3(0.0f, -3.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(4.0f, 4.0f, 4.0f));
-        modelShader.setMat4("model", model);
+        sourceShader.use();
+        sourceShader.setMat4("projection", projection);
+        sourceShader.setMat4("view", view);
+        sourceShader.setMat4("model", model);
 
-        planet.Draw(modelShader);
+        glBindVertexArray(cubeVAO);
 
-        // asteroids
-        instanceShader.use();
-        instanceShader.setMat4("projection", projection);
-        instanceShader.setMat4("view", view);
-        for (unsigned int i = 0; i < asteroid.getNumMeshes(); i++)
-        {
-            glBindVertexArray(asteroid.getMeshVAO(i));
-            glDrawElementsInstanced(
-                GL_TRIANGLES, asteroid.getMeshIndicesSize(i), GL_UNSIGNED_INT, 0, amount
-            );
-        }  
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // floor
+        model = glm::mat4(1.0f);
+        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
+
+        objectShader.use();
+        objectShader.setMat4("projection", projection);
+        objectShader.setMat4("view", view);
+        objectShader.setMat4("model", model);
+        objectShader.setMat3("normalModel", normalModel);
+
+        objectShader.setVec3("viewPos", camera.Position);
+        objectShader.setBool("blinn", blinn);
+
+        if (blinn)
+            objectShader.setInt("material.diffuse", 0);
+        else
+            objectShader.setInt("material.diffuse", 1);
+
+        glBindVertexArray(floorVAO);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         // End of rendering
         glBindVertexArray(0);
@@ -267,6 +293,7 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
+    // process movement
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.ProcessKeyboard(FORWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -279,6 +306,16 @@ void processInput(GLFWwindow* window)
         camera.ProcessKeyboard(UP, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         camera.ProcessKeyboard(DOWN, deltaTime);
+
+    // toggle blinn-phong
+    if (glfwGetTime() - lastBlinn >= 0.3f)
+    {
+        if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
+        {
+            blinn = !blinn;
+            lastBlinn = glfwGetTime();
+        }
+    }
 }
 
 // glfw: whenever the cursor moves this callback function executes
