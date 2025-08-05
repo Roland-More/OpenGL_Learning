@@ -27,7 +27,6 @@ out vec4 FragColor;
 uniform Material material;
 uniform Light light;
 uniform vec3 viewPos;
-uniform bool blinn;
 
 
 void main()
@@ -48,18 +47,9 @@ void main()
 
     // Specular
     vec3 viewDir = normalize(viewPos - FragPos);
-    float spec = 0.0;
-    
-    if (blinn)
-    {
-        vec3 halfwayDir = normalize(viewDir + lightDir);
-        spec = pow(max(dot(norm, halfwayDir), 0.0), material.shininess);
-    }
-    else
-    {
-        vec3 reflectDir = reflect(-lightDir, norm);
-        spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess / 4);
-    }
+
+    vec3 halfwayDir = normalize(viewDir + lightDir);
+    float spec = pow(max(dot(norm, halfwayDir), 0.0), material.shininess);
 
     vec3 specular = spec * light.specular * material.specular * attenuation;
 
@@ -67,8 +57,7 @@ void main()
     vec3 result = ambient + diffuse + specular;
 
     // Gama correction
-    if (blinn)
-        result = pow(result, vec3(1.0/2.2));
+    result = pow(result, vec3(1.0/2.2));
 
     FragColor = vec4(result, 1.0);
 }

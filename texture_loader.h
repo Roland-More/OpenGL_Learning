@@ -15,7 +15,8 @@ enum Texture_filter {
 };
 
 enum Input_format {
-    GAMMA_CORRECTED = 0x8C40
+    GAMMA_CORRECTED = 0x8C40,
+    GAMMA_CORRECTED_ALPHA = 0x8C42
 };
 
 
@@ -155,7 +156,10 @@ unsigned int TextureFromFile(const char* path, Input_format texformat)
     else if (nrChannels == 3)
         format = GL_RGB;
     else if (nrChannels == 4)
+    {
         format = GL_RGBA;
+        texformat = GAMMA_CORRECTED_ALPHA;
+    }
     else
     {
         std::cout << "Unsupported texture format" << std::endl;

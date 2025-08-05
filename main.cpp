@@ -34,9 +34,6 @@ bool firstMouse = true;
 float deltaTime = 0.0f;	// Time between current frame and last frame
 float lastFrame = 0.0f; // Time of last frame
 
-// lighting
-bool blinn = true;
-float lastBlinn = 0.0f;
 
 int main()
 {
@@ -95,59 +92,93 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader sourceShader("shaders/vertex/3d.glsl","shaders/fragment/simple_colors/white.glsl");
-    Shader objectShader("shaders/vertex/lighting/3d_lphong.glsl", "shaders/fragment/lighting/gc_blinn-pointl.glsl");
+    Shader depthMapShader("shaders/vertex/lighting/simple_depth.glsl", "shaders/fragment/lighting/empty.glsl");
+    Shader objectShader("shaders/vertex/lighting/3d_lphong.glsl", "shaders/fragment/lighting/gc_blinn-directionl.glsl");
 
     // Set up uniforms and instancing buffer data
-    glm::vec3 lightPosition = {0.0f, 1.0f, 0.0f};
+    const glm::vec3 lightDirection = glm::vec3(2.0f, -4.0f, 1.0f);
+
+    // Set up framebuffers
+
+    // Depth buffer for the shadow map
+    unsigned int depthMapFBO;
+    glGenFramebuffers(1, &depthMapFBO);
+
+    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+
+    // the texture attachment (depth buffer -> map)
+    unsigned int depthMap;
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 
+                SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     
+    // Attach the texture to the framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+
+    // No color buffer
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     // Load models
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     const float cubeVertices[] = {
-        // Back face
-        -0.5f, -0.5f, -0.5f,
-        0.5f,  0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f,  0.5f, -0.5f,
-        // Front face
-        -0.5f, -0.5f,  0.5f,
-        0.5f, -0.5f,  0.5f,
-        0.5f,  0.5f,  0.5f,
-        0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
-        // Left face
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        // Right face
-        0.5f,  0.5f,  0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f,  0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f,  0.5f,  0.5f,
-        0.5f, -0.5f,  0.5f,
-        // Bottom face
-        -0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f,  0.5f,
-        0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f, -0.5f,
-        // Top face
-        -0.5f,  0.5f, -0.5f,
-        0.5f,  0.5f,  0.5f,
-        0.5f,  0.5f, -0.5f,
-        0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f,  0.5f,  0.5f,
+        // Back face (z = -0.5)
+        -0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   1.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   0.0f, 1.0f,
+
+        // Front face (z = +0.5)
+        -0.5f, -0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
+
+        // Left face (x = -0.5)
+        -0.5f,  0.5f,  0.5f,  -1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  -1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  -1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  -1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  -1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  -1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+
+        // Right face (x = +0.5)
+        0.5f,  0.5f,  0.5f,   1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,   1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,   1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,   1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,   1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,   1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+
+        // Bottom face (y = -0.5)
+        -0.5f, -0.5f, -0.5f,   0.0f, -1.0f,  0.0f,   0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,   0.0f, -1.0f,  0.0f,   1.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,   0.0f, -1.0f,  0.0f,   1.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,   0.0f, -1.0f,  0.0f,   1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,   0.0f, -1.0f,  0.0f,   0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,   0.0f, -1.0f,  0.0f,   0.0f, 1.0f,
+
+        // Top face (y = +0.5)
+        -0.5f,  0.5f, -0.5f,   0.0f,  1.0f,  0.0f,   0.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,   0.0f,  1.0f,  0.0f,   1.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,   0.0f,  1.0f,  0.0f,   1.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,   0.0f,  1.0f,  0.0f,   1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,   0.0f,  1.0f,  0.0f,   0.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,   0.0f,  1.0f,  0.0f,   0.0f, 0.0f,
     };
 
     const float floorVertices[] = {
@@ -161,8 +192,8 @@ int main()
     
     // Configure texturing and load a texture
     // ----------------------------------------------------------------------------
-    unsigned int floorTextureGC = TextureFromFile("resources/textures/floor.jpg", GAMMA_CORRECTED);
-    unsigned int floorTexture = TextureFromFile("resources/textures/floor.jpg");
+    const unsigned int floorTexture = TextureFromFile("resources/textures/floor.jpg", GAMMA_CORRECTED);
+    const unsigned int cubeTexture = TextureFromFile("resources/textures/container.jpg", GAMMA_CORRECTED);
 
     // cube VAO
     unsigned int cubeVAO, cubeVBO;
@@ -174,7 +205,11 @@ int main()
     glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
     // floor VAO
     unsigned int floorVAO, floorVBO;
@@ -196,21 +231,16 @@ int main()
 
     // Configure shaders
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, floorTextureGC);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, floorTexture);
 
     objectShader.use();
+    objectShader.setInt("material.diffuse", 0);
     objectShader.setVec3("material.specular", 1.0f, 1.0f, 1.0f);
     objectShader.setFloat("material.shininess", 32.0f);
 
-    objectShader.setVec3("light.position", lightPosition);
+    objectShader.setVec3("light.direction", lightDirection);
     objectShader.setVec3("light.ambient", 0.1f, 0.1f, 0.1f);
     objectShader.setVec3("light.diffuse", 0.75f, 0.75f, 0.75f);
     objectShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
-    objectShader.setFloat("light.constant", 1.0f);
-    objectShader.setFloat("light.linear", 0.35f);
-    objectShader.setFloat("light.quadratic", 0.44f);
     
     // Rendering loop
     // --------------
@@ -230,23 +260,30 @@ int main()
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        const glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 7.5f);
+        const glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f),
+                                                glm::vec3( 0.0f, 0.0f,  0.0f),
+                                                glm::vec3( 0.0f, 1.0f,  0.0f));
+        const glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
         const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         const glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
         glm::mat3 normalModel = glm::mat3(1.0f);
 
-        // light source
-        model = glm::translate(model, lightPosition);
-        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+        // depth map
+        // ---------
+        // depthMapShader.use();
+        // depthMapShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 
-        sourceShader.use();
-        sourceShader.setMat4("projection", projection);
-        sourceShader.setMat4("view", view);
-        sourceShader.setMat4("model", model);
+        // glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        // glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        // glClear(GL_DEPTH_BUFFER_BIT);
+        
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        glBindVertexArray(cubeVAO);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // Scene
+        // -----
 
         // floor
         model = glm::mat4(1.0f);
@@ -259,16 +296,38 @@ int main()
         objectShader.setMat3("normalModel", normalModel);
 
         objectShader.setVec3("viewPos", camera.Position);
-        objectShader.setBool("blinn", blinn);
 
-        if (blinn)
-            objectShader.setInt("material.diffuse", 0);
-        else
-            objectShader.setInt("material.diffuse", 1);
-
+        glBindTexture(GL_TEXTURE_2D, floorTexture);
         glBindVertexArray(floorVAO);
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        // cubes
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(40.0f), glm::vec3(1.0f, 0.5f, 0.25f));
+        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
+
+        objectShader.setMat4("model", model);
+        objectShader.setMat3("normalModel", normalModel);
+
+        glBindTexture(GL_TEXTURE_2D, cubeTexture);
+        glBindVertexArray(cubeVAO);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(2.5f, 0.5f, -1.5f));
+        model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
+        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
+
+        objectShader.setMat4("model", model);
+        objectShader.setMat3("normalModel", normalModel);
+
+        glBindTexture(GL_TEXTURE_2D, cubeTexture);
+        glBindVertexArray(cubeVAO);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // End of rendering
         glBindVertexArray(0);
@@ -306,16 +365,6 @@ void processInput(GLFWwindow* window)
         camera.ProcessKeyboard(UP, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         camera.ProcessKeyboard(DOWN, deltaTime);
-
-    // toggle blinn-phong
-    if (glfwGetTime() - lastBlinn >= 0.3f)
-    {
-        if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS)
-        {
-            blinn = !blinn;
-            lastBlinn = glfwGetTime();
-        }
-    }
 }
 
 // glfw: whenever the cursor moves this callback function executes
