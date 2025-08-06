@@ -93,7 +93,7 @@ int main()
     // Load shader porgrams
     // --------------------
     Shader depthMapShader("shaders/vertex/lighting/simple_depth.glsl", "shaders/fragment/lighting/empty.glsl");
-    Shader objectShader("shaders/vertex/lighting/3d_lphong.glsl", "shaders/fragment/lighting/gc_blinn-directionl.glsl");
+    Shader objectShader("shaders/vertex/lighting/3d_lphong_shadow.glsl", "shaders/fragment/lighting/adv-directionl_shadow.glsl");
 
     // Set up uniforms and instancing buffer data
     const glm::vec3 lightDirection = glm::vec3(2.0f, -4.0f, 1.0f);
@@ -189,7 +189,7 @@ int main()
         -5.0f,  0.0f, -5.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f,
         -5.0f,  0.0f,  5.0f,  0.0f, 1.0f, 0.0f,  0.0f, 2.0f,
     };
-    
+
     // Configure texturing and load a texture
     // ----------------------------------------------------------------------------
     const unsigned int floorTexture = TextureFromFile("resources/textures/floor.jpg", GAMMA_CORRECTED);
@@ -230,6 +230,9 @@ int main()
     glBindVertexArray(0);
 
     // Configure shaders
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+
     glActiveTexture(GL_TEXTURE0);
 
     objectShader.use();
@@ -257,33 +260,68 @@ int main()
 
         // Rendering
         // ---------
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         const glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 7.5f);
         const glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f),
                                                 glm::vec3( 0.0f, 0.0f,  0.0f),
                                                 glm::vec3( 0.0f, 1.0f,  0.0f));
         const glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
-        const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
-        const glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
-        glm::mat3 normalModel = glm::mat3(1.0f);
 
         // depth map
         // ---------
-        // depthMapShader.use();
-        // depthMapShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
 
-        // glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-        // glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-        // glClear(GL_DEPTH_BUFFER_BIT);
-        
-        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // floor
+        model = glm::mat4(1.0f);
+
+        depthMapShader.use();
+        depthMapShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+        depthMapShader.setMat4("model", model);
+
+        glBindVertexArray(floorVAO);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        // cubes
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(40.0f), glm::vec3(1.0f, 0.5f, 0.25f));
+
+        depthMapShader.setMat4("model", model);
+
+        glBindVertexArray(cubeVAO);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(2.5f, 0.5f, -1.5f));
+        model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
+
+        depthMapShader.setMat4("model", model);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-1.5f, 0.375f, 2.0f));
+        model = glm::scale(model, glm::vec3(0.75f, 0.75f, 0.75f));
+
+        depthMapShader.setMat4("model", model);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // Scene
         // -----
+        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
+        const glm::mat4 view = camera.GetViewMatrix();
+        glm::mat3 normalModel = glm::mat3(1.0f);
 
         // floor
         model = glm::mat4(1.0f);
@@ -294,10 +332,13 @@ int main()
         objectShader.setMat4("view", view);
         objectShader.setMat4("model", model);
         objectShader.setMat3("normalModel", normalModel);
+        objectShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 
         objectShader.setVec3("viewPos", camera.Position);
+        objectShader.setInt("shadowMap", 1);
 
         glBindTexture(GL_TEXTURE_2D, floorTexture);
+        
         glBindVertexArray(floorVAO);
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -324,8 +365,15 @@ int main()
         objectShader.setMat4("model", model);
         objectShader.setMat3("normalModel", normalModel);
 
-        glBindTexture(GL_TEXTURE_2D, cubeTexture);
-        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-1.5f, 0.375f, 2.0f));
+        model = glm::scale(model, glm::vec3(0.75f, 0.75f, 0.75f));
+        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
+
+        objectShader.setMat4("model", model);
+        objectShader.setMat3("normalModel", normalModel);
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
