@@ -34,7 +34,7 @@ void main()
     // General
     vec3 lightDir = normalize(light.position - FragPos);
     vec3 norm = normalize(Normal);
-    float ldistance    = length(light.position - FragPos);
+    float ldistance   = length(light.position - FragPos);
     float attenuation = 1.0 / (light.constant + light.linear * ldistance + 
                         light.quadratic * (ldistance * ldistance));
 

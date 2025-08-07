@@ -87,16 +87,20 @@ int main()
     // Enable depth testing for 3D rendering
     glEnable(GL_DEPTH_TEST);
 
+    // Enable culling
+    glEnable(GL_CULL_FACE);
+
     // Enable MSAA (Multi Sample Anti-Aliasing)
     // glEnable(GL_MULTISAMPLE);
 
     // Load shader porgrams
     // --------------------
-    Shader depthMapShader("shaders/vertex/lighting/simple_depth.glsl", "shaders/fragment/lighting/empty.glsl");
-    Shader objectShader("shaders/vertex/lighting/3d_lphong_shadow.glsl", "shaders/fragment/lighting/adv-directionl_shadow.glsl");
+    Shader depthMapShader("shaders/vertex/lighting/simple_depth.glsl", "shaders/fragment/lighting/linearize_depth.glsl");
+    Shader objectShader("shaders/vertex/lighting/3d_lphong_shadow.glsl", "shaders/fragment/lighting/adv-pointl_shadow.glsl");
 
     // Set up uniforms and instancing buffer data
-    const glm::vec3 lightDirection = glm::vec3(2.0f, -4.0f, 1.0f);
+    // const glm::vec3 lightDirection = glm::vec3(2.0f, -4.0f, 1.0f);
+    const glm::vec3 lightPosition = glm::vec3(-2.0f, 4.0f, -1.0f);
 
     // Set up framebuffers
 
@@ -114,8 +118,11 @@ int main()
                 SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    const float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
     
     // Attach the texture to the framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
@@ -182,12 +189,12 @@ int main()
     };
 
     const float floorVertices[] = {
-        -5.0f,  0.0f, -5.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f,
-        5.0f,  0.0f,  5.0f,   0.0f, 1.0f, 0.0f,  2.0f, 2.0f,
-        5.0f,  0.0f, -5.0f,   0.0f, 1.0f, 0.0f,  2.0f, 0.0f,
-        5.0f,  0.0f,  5.0f,   0.0f, 1.0f, 0.0f,  2.0f, 2.0f,
-        -5.0f,  0.0f, -5.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f,
-        -5.0f,  0.0f,  5.0f,  0.0f, 1.0f, 0.0f,  0.0f, 2.0f,
+        -20.0f,  0.0f, -20.0f,  0.0f, 1.0f, 0.0f,  -3.0f, -3.0f,
+        20.0f,  0.0f,  20.0f,   0.0f, 1.0f, 0.0f,  5.0f, 5.0f,
+        20.0f,  0.0f, -20.0f,   0.0f, 1.0f, 0.0f,  5.0f, -3.0f,
+        20.0f,  0.0f,  20.0f,   0.0f, 1.0f, 0.0f,  5.0f, 5.0f,
+        -20.0f,  0.0f, -20.0f,  0.0f, 1.0f, 0.0f,  -3.0f, -3.0f,
+        -20.0f,  0.0f,  20.0f,  0.0f, 1.0f, 0.0f,  -3.0f, 5.0f,
     };
 
     // Configure texturing and load a texture
@@ -235,15 +242,26 @@ int main()
 
     glActiveTexture(GL_TEXTURE0);
 
+    depthMapShader.use();
+    depthMapShader.setFloat("near_plane", 0.1f);
+    depthMapShader.setFloat("far_plane", 7.5f);
+
     objectShader.use();
     objectShader.setInt("material.diffuse", 0);
     objectShader.setVec3("material.specular", 1.0f, 1.0f, 1.0f);
     objectShader.setFloat("material.shininess", 32.0f);
 
-    objectShader.setVec3("light.direction", lightDirection);
+    objectShader.setVec3("light.position", lightPosition);
     objectShader.setVec3("light.ambient", 0.1f, 0.1f, 0.1f);
     objectShader.setVec3("light.diffuse", 0.75f, 0.75f, 0.75f);
     objectShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+    objectShader.setFloat("light.constant", 1.0f);
+    objectShader.setFloat("light.linear", 0.22f);
+    objectShader.setFloat("light.quadratic", 0.20f);
+
+    objectShader.setInt("shadowMap", 1);
+    objectShader.setFloat("near_plane", 0.1f);
+    objectShader.setFloat("far_plane", 7.5f);
     
     // Rendering loop
     // --------------
@@ -260,10 +278,10 @@ int main()
 
         // Rendering
         // ---------
-        const glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 7.5f);
-        const glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f),
-                                                glm::vec3( 0.0f, 0.0f,  0.0f),
-                                                glm::vec3( 0.0f, 1.0f,  0.0f));
+        const glm::mat4 lightProjection = glm::perspective(glm::radians(120.0f), 1.0f, 0.1f, 7.5f);
+        const glm::mat4 lightView = glm::lookAt(lightPosition,
+                                                glm::vec3( 0.0f, 0.0f, 0.0f),
+                                                glm::vec3( 0.0f, 1.0f, 0.0f));
         const glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
         glm::mat4 model = glm::mat4(1.0f);
@@ -335,7 +353,6 @@ int main()
         objectShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 
         objectShader.setVec3("viewPos", camera.Position);
-        objectShader.setInt("shadowMap", 1);
 
         glBindTexture(GL_TEXTURE_2D, floorTexture);
         
