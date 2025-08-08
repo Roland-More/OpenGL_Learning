@@ -22,49 +22,29 @@ in VS_OUT {
     vec3 FragPos;
     vec3 Normal;
     vec2 TexCoords;
-    vec4 FragPosLightSpace;
 } fs_in;
 
 out vec4 FragColor;
 
 uniform Material material;
 uniform Light light;
+
 uniform vec3 viewPos;
 
-uniform sampler2D shadowMap;
-uniform float near_plane;
+uniform samplerCube shadowMap;
 uniform float far_plane;
 
 
-float LinearizeDepth(float depth)
+float shadowCalculation(vec3 fragPos)
 {
-    float z = depth * 2.0 - 1.0; // Back to NDC 
-    return (2.0 * near_plane * far_plane) / (far_plane + near_plane - z * (far_plane - near_plane));
-}
+    vec3 fragToLight = fragPos - light.position;
 
-float shadowCalculation(vec4 fragPosLightSpace, vec3 lightDir, vec3 norm)
-{
-    // perform perspective divide (not needed for orthographic proj.)
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
+    float currentDepth = length(fragToLight);
+    float closestDepth = texture(shadowMap, fragToLight).r;
+    closestDepth *= far_plane;
 
-    if (projCoords.z > 1.0)
-        return 0.0;
-
-    float currentDepth = LinearizeDepth(projCoords.z) / far_plane;
-    float bias = max(0.03 * (1.0 - dot(norm, lightDir)), 0.003);
-
-    float shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
-    for (int x = -1; x <= 1; ++x)
-    {
-        for (int y = -1; y <= 1; ++y)
-        {
-            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
-            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
-        }    
-    }
-    shadow /= 9.0;
+    float bias = 0.05; 
+    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0; 
 
     return shadow;
 }
@@ -86,7 +66,7 @@ void main()
     vec3 specular = vec3(0.0, 0.0, 0.0);
 
     // Dont calculate diffuse and specular if completely in shadow
-    float shadow = shadowCalculation(fs_in.FragPosLightSpace, lightDir, norm);
+    float shadow = shadowCalculation(fs_in.FragPos);
     if (shadow != 1.0)
     {
         // Diffuse
