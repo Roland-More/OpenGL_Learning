@@ -35,16 +35,37 @@ uniform samplerCube shadowMap;
 uniform float far_plane;
 
 
+const vec3 shadowCalculationSampleOffsetDirections[20] = vec3[]
+(
+   vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
+   vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+   vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+   vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
+   vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
+);
+
+
 float shadowCalculation(vec3 fragPos)
 {
     vec3 fragToLight = fragPos - light.position;
 
     float currentDepth = length(fragToLight);
-    float closestDepth = texture(shadowMap, fragToLight).r;
-    closestDepth *= far_plane;
 
-    float bias = 0.05; 
-    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0; 
+    float shadow  = 0.0;
+    float bias    = 0.15;
+    int samples   = 20;
+    float offset  = 0.1;
+    float viewDistance = length(viewPos - fragPos);
+    float diskRadius = (1.0 + (viewDistance / far_plane)) / 25.0;  
+
+    for (int i = 0; i < samples; i++)
+    {
+        float closestDepth = texture(shadowMap, fragToLight + shadowCalculationSampleOffsetDirections[i] * diskRadius).r;
+        closestDepth *= far_plane; // undo mapping [0;1]
+        if (currentDepth - bias > closestDepth)
+            shadow += 1.0;
+    }
+    shadow /= float(samples);
 
     return shadow;
 }
@@ -62,10 +83,10 @@ void main()
     // Ambient
     vec3 ambient = light.ambient * vec3(texture(material.diffuse, fs_in.TexCoords)) * attenuation;
 
+    // Dont calculate diffuse and specular if completely in shadow
     vec3 diffuse = vec3(0.0, 0.0, 0.0);
     vec3 specular = vec3(0.0, 0.0, 0.0);
 
-    // Dont calculate diffuse and specular if completely in shadow
     float shadow = shadowCalculation(fs_in.FragPos);
     if (shadow != 1.0)
     {

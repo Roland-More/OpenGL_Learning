@@ -101,7 +101,7 @@ int main()
 
     // Set up uniforms and instancing buffer data
     // const glm::vec3 lightDirection = glm::vec3(2.0f, -4.0f, 1.0f);
-    const glm::vec3 lightPos = glm::vec3(1.0f, 1.0f, 1.0f);
+    const glm::vec3 lightPos = glm::vec3(1.5f, 1.0f, 1.5f);
 
     // Set up framebuffers
 
