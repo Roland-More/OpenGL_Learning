@@ -94,46 +94,14 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader depthCubemapShader("shaders/vertex/lighting/wrld_depth.glsl", "shaders/fragment/lighting/depth_cubemap.glsl",
-                                "shaders/geometry/lighting/depth_cubemap.glsl");
     Shader sourceShader("shaders/vertex/3d.glsl", "shaders/fragment/simple_colors/white.glsl");
-    Shader objectShader("shaders/vertex/lighting/3d_lphong_shadow.glsl", "shaders/fragment/lighting/adv-pointl_shadow.glsl");
+    Shader objectShader("shaders/vertex/lighting/3d_lphong_shadnorm.glsl", "shaders/fragment/lighting/Apointl_norm.glsl");
 
     // Set up uniforms and instancing buffer data
     // const glm::vec3 lightDirection = glm::vec3(2.0f, -4.0f, 1.0f);
     const glm::vec3 lightPos = glm::vec3(1.5f, 1.0f, 1.5f);
 
     // Set up framebuffers
-
-    // Depth buffer for the shadow map
-    unsigned int depthCubemapFBO;
-    glGenFramebuffers(1, &depthCubemapFBO);
-
-    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
-
-    // the texture attachment (depth buffer -> map)
-    unsigned int depthCubemap;
-    glGenTextures(1, &depthCubemap);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
-    for (unsigned int i = 0; i < 6; ++i)
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 
-                     SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-    // Attach the texture to the framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, depthCubemapFBO);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
-
-    // No color buffer
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Load models
 
@@ -239,6 +207,15 @@ int main()
         -0.5f,  0.5f,  0.5f,   0.0f,  -1.0f,  0.0f,   0.0f, 0.0f,
     };
 
+    const float wallVertices[] = {
+        -0.5f, -0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+        0.5f,  0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+        0.5f, -0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
+        0.5f,  0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+        -0.5f, -0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+        -0.5f,  0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
+    };
+
     const float floorVertices[] = {
         -20.0f,  0.0f, -20.0f,  0.0f, 1.0f, 0.0f,  -3.0f, -3.0f,
         20.0f,  0.0f,  20.0f,   0.0f, 1.0f, 0.0f,  5.0f, 5.0f,
@@ -250,8 +227,8 @@ int main()
 
     // Configure texturing and load a texture
     // ----------------------------------------------------------------------------
-    const unsigned int floorTexture = TextureFromFile("resources/textures/floor.jpg", GAMMA_CORRECTED);
-    const unsigned int cubeTexture = TextureFromFile("resources/textures/container.jpg", GAMMA_CORRECTED);
+    const unsigned int wallTexture = TextureFromFile("resources/textures/brickwall.jpg", GAMMA_CORRECTED);
+    const unsigned int wallNormalTexture = TextureFromFile("resources/textures/brickwall_normal.jpg", GAMMA_CORRECTED);
 
     // cube VAO
     unsigned int cubeVAO, cubeVBO;
@@ -267,7 +244,7 @@ int main()
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
     // out cube VAO
     unsigned int outCubeVAO, outCubeVBO;
@@ -283,7 +260,23 @@ int main()
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+
+    // wall VAO
+    unsigned int wallVAO, wallVBO;
+    glGenVertexArrays(1, &wallVAO);
+    glGenBuffers(1, &wallVBO);
+
+    glBindVertexArray(wallVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, wallVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertices), wallVertices, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
     // floor VAO
     unsigned int floorVAO, floorVBO;
@@ -299,24 +292,20 @@ int main()
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
     glBindVertexArray(0);
 
     // Configure shaders
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+    glBindTexture(GL_TEXTURE_2D, wallNormalTexture);
 
     glActiveTexture(GL_TEXTURE0);
 
-    depthCubemapShader.use();
-    depthCubemapShader.setVec3("lightPos", lightPos);
-    depthCubemapShader.setFloat("far_plane", 25.0f);
-
     objectShader.use();
     objectShader.setInt("material.diffuse", 0);
-    objectShader.setVec3("material.specular", 1.0f, 1.0f, 1.0f);
-    objectShader.setFloat("material.shininess", 32.0f);
+    objectShader.setVec3("material.specular", 0.6f, 0.6f, 0.6f);
+    objectShader.setFloat("material.shininess", 64.0f);
 
     objectShader.setVec3("light.position", lightPos);
     objectShader.setVec3("light.ambient", 0.1f, 0.1f, 0.1f);
@@ -326,9 +315,8 @@ int main()
     objectShader.setFloat("light.linear", 0.07f);
     objectShader.setFloat("light.quadratic", 0.017f);
 
-    objectShader.setInt("shadowMap", 1);
-    objectShader.setFloat("far_plane", 25.0f);
-    
+    objectShader.setInt("normalMap", 1);
+ 
     // Rendering loop
     // --------------
     while (!glfwWindowShouldClose(window))
@@ -344,65 +332,15 @@ int main()
 
         // Rendering
         // ---------
-        const glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), 1.0f, 1.0f, 25.0f);
-        
-        const glm::mat4 shadowTransforms[6] = {
-            shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)),
-            shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)),
-            shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)),
-            shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0,-1.0, 0.0), glm::vec3(0.0, 0.0,-1.0)),
-            shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0, 0.0, 1.0), glm::vec3(0.0,-1.0, 0.0)),
-            shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3( 0.0, 0.0,-1.0), glm::vec3(0.0,-1.0, 0.0)),
-        };
-
-        glm::mat4 model = glm::mat4(1.0f);
-
-        // depth map
-        // ---------
-        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-        glBindFramebuffer(GL_FRAMEBUFFER, depthCubemapFBO);
-        glClear(GL_DEPTH_BUFFER_BIT);
-
-        // cubes
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(40.0f), glm::vec3(1.0f, 0.5f, 0.25f));
-
-        depthCubemapShader.use();
-        for (unsigned int i = 0; i < 6; i++)
-            depthCubemapShader.setMat4("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
-
-        depthCubemapShader.setMat4("model", model);
-
-        glBindVertexArray(cubeVAO);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(2.5f, 0.5f, -1.5f));
-        model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
-
-        depthCubemapShader.setMat4("model", model);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-1.5f, 0.375f, 2.0f));
-        model = glm::scale(model, glm::vec3(0.75f, 0.75f, 0.75f));
-
-        depthCubemapShader.setMat4("model", model);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // Scene
         // -----
-        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         const glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 model = glm::mat4(1.0f);
         glm::mat3 normalModel = glm::mat3(1.0f);
 
         // light source
@@ -419,57 +357,23 @@ int main()
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        // room
+        // wall
         model = glm::mat4(1.0f);
         model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
-        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
+        // normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
         objectShader.use();
         objectShader.setMat4("projection", projection);
         objectShader.setMat4("view", view);
         objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
+        // objectShader.setMat3("normalModel", normalModel);
 
         objectShader.setVec3("viewPos", camera.Position);
 
-        glBindTexture(GL_TEXTURE_2D, floorTexture);
-        glBindVertexArray(outCubeVAO);
+        glBindTexture(GL_TEXTURE_2D, wallTexture);
+        glBindVertexArray(wallVAO);
         
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        // cubes
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(40.0f), glm::vec3(1.0f, 0.5f, 0.25f));
-        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
-
-        objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
-
-        glBindTexture(GL_TEXTURE_2D, cubeTexture);
-        glBindVertexArray(cubeVAO);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(2.5f, 0.5f, -1.5f));
-        model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
-        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
-
-        objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-1.5f, 0.375f, 2.0f));
-        model = glm::scale(model, glm::vec3(0.75f, 0.75f, 0.75f));
-        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
-
-        objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         // End of rendering
         glBindVertexArray(0);
