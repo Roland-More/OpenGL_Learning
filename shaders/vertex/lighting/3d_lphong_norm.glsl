@@ -8,7 +8,6 @@ layout (location = 4) in vec3 aBitangent;
 
 
 out VS_OUT {
-    vec3 FragPos;
     vec2 TexCoords;
     vec3 TangentLightPos;
     vec3 TangentViewPos;
@@ -25,7 +24,6 @@ uniform vec3 viewPos;
 
 void main()
 {    
-    vs_out.FragPos = vec3(model * vec4(aPos, 1.0));
     vs_out.TexCoords = aTexCoords;
 
     vec3 T = normalize(vec3(model * vec4(aTangent,   0.0)));
@@ -35,7 +33,7 @@ void main()
     
     vs_out.TangentLightPos = TBN * lightPos;
     vs_out.TangentViewPos  = TBN * viewPos;
-    vs_out.TangentFragPos  = TBN * vs_out.FragPos;
+    vs_out.TangentFragPos  = TBN * vec3(model * vec4(aPos, 1.0));
 
-    gl_Position = projection * view * vec4(vs_out.FragPos, 1.0);
+    gl_Position = projection * view * model * vec4(aPos, 1.0);
 }

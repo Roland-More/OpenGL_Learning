@@ -15,6 +15,7 @@ struct Vertex {
     glm::vec3 Position;
     glm::vec3 Normal;
     glm::vec2 TexCoords;
+    glm::vec3 Tangent;
 };
 
 struct Texture {
@@ -31,19 +32,20 @@ public:
     std::vector<unsigned int> indices;
     std::vector<Texture>      textures;
 
-    Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures)
+    Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Texture> textures, bool hasTangents)
     {
         this->vertices = vertices;
         this->indices = indices;
         this->textures = textures;
 
-        setupMesh();
+        setupMesh(hasTangents);
     }
 
     void Draw(Shader &shader)
     {
         unsigned int diffuseNr = 1;
         unsigned int specularNr = 1;
+        unsigned int normalNr = 1;
         for (unsigned int i = 0; i < textures.size(); i++)
         {
             glActiveTexture(GL_TEXTURE0 + i); // activate proper texture unit before binding
@@ -54,6 +56,8 @@ public:
                 number = std::to_string(diffuseNr++);
             else if (name == "texture_specular")
                 number = std::to_string(specularNr++);
+            else if (name == "texture_normal")
+                number = std::to_string(normalNr++);
 
             shader.setInt(("material." + name + number).c_str(), i);
             glBindTexture(GL_TEXTURE_2D, textures[i].id);
@@ -75,7 +79,7 @@ private:
     //  render data
     unsigned int VAO, VBO, EBO;
 
-    void setupMesh()
+    void setupMesh(bool hasTangents)
     {
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
@@ -99,6 +103,13 @@ private:
         // vertex texture coords
         glEnableVertexAttribArray(2);	
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
+
+        if (hasTangents)
+        {
+            // vertex Tangent vectors
+            glEnableVertexAttribArray(3);	
+            glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Tangent));
+        }
 
         glBindVertexArray(0);
     }

@@ -158,7 +158,8 @@ unsigned int TextureFromFile(const char* path, Input_format texformat)
     else if (nrChannels == 4)
     {
         format = GL_RGBA;
-        texformat = GAMMA_CORRECTED_ALPHA;
+        if (texformat == GAMMA_CORRECTED)
+            texformat = GAMMA_CORRECTED_ALPHA;
     }
     else
     {

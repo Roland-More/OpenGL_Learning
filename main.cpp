@@ -11,6 +11,7 @@
 #include "shader.h"
 #include "camera.h"
 #include "texture_loader.h"
+#include "tangent_space_compute.h"
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height); // Update viewportu
@@ -95,7 +96,7 @@ int main()
     // Load shader porgrams
     // --------------------
     Shader sourceShader("shaders/vertex/3d.glsl", "shaders/fragment/simple_colors/white.glsl");
-    Shader objectShader("shaders/vertex/lighting/3d_lphong_shadnorm.glsl", "shaders/fragment/lighting/Apointl_norm.glsl");
+    Shader objectShader("shaders/vertex/lighting/3d_lphong_norm.glsl", "shaders/fragment/lighting/Apointl_norm.glsl");
 
     // Set up uniforms and instancing buffer data
     // const glm::vec3 lightDirection = glm::vec3(2.0f, -4.0f, 1.0f);
@@ -207,13 +208,17 @@ int main()
         -0.5f,  0.5f,  0.5f,   0.0f,  -1.0f,  0.0f,   0.0f, 0.0f,
     };
 
+    // Get tangent space vectors
+    const auto [tangent1, bitangent1, tangent2, bitangent2] = computeTangentSpace();
+
     const float wallVertices[] = {
-        -0.5f, -0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-        0.5f,  0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        0.5f, -0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
-        0.5f,  0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        -0.5f, -0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-        -0.5f,  0.5f, 0.0f,   0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
+        // positions         // normals         // tex coords // tangents                        // bitangents
+        -0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f,   tangent1.x, tangent1.y, tangent1.z,  bitangent1.x, bitangent1.y, bitangent1.z,
+        0.5f,  0.5f, 0.0f,   0.0f, 0.0f, 1.0f,  1.0f, 1.0f,   tangent1.x, tangent1.y, tangent1.z,  bitangent1.x, bitangent1.y, bitangent1.z,
+        0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,  1.0f, 0.0f,   tangent1.x, tangent1.y, tangent1.z,  bitangent1.x, bitangent1.y, bitangent1.z,
+        0.5f,  0.5f, 0.0f,   0.0f, 0.0f, 1.0f,  1.0f, 1.0f,   tangent2.x, tangent2.y, tangent2.z,  bitangent2.x, bitangent2.y, bitangent2.z,
+        -0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 0.0f,   tangent2.x, tangent2.y, tangent2.z,  bitangent2.x, bitangent2.y, bitangent2.z,
+        -0.5f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  0.0f, 1.0f,   tangent2.x, tangent2.y, tangent2.z,  bitangent2.x, bitangent2.y, bitangent2.z,
     };
 
     const float floorVertices[] = {
@@ -225,10 +230,6 @@ int main()
         -20.0f,  0.0f,  20.0f,  0.0f, 1.0f, 0.0f,  -3.0f, 5.0f,
     };
 
-    // Configure texturing and load a texture
-    // ----------------------------------------------------------------------------
-    const unsigned int wallTexture = TextureFromFile("resources/textures/brickwall.jpg", GAMMA_CORRECTED);
-    const unsigned int wallNormalTexture = TextureFromFile("resources/textures/brickwall_normal.jpg", GAMMA_CORRECTED);
 
     // cube VAO
     unsigned int cubeVAO, cubeVBO;
@@ -272,11 +273,15 @@ int main()
     glBufferData(GL_ARRAY_BUFFER, sizeof(wallVertices), wallVertices, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(3);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(8 * sizeof(float)));
+    glEnableVertexAttribArray(4);
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(11 * sizeof(float)));
 
     // floor VAO
     unsigned int floorVAO, floorVBO;
@@ -296,6 +301,11 @@ int main()
 
     glBindVertexArray(0);
 
+    // Configure texturing and load textures
+    // ----------------------------------------------------------------------------
+    const unsigned int wallTexture = TextureFromFile("resources/textures/brickwall.jpg", GAMMA_CORRECTED);
+    const unsigned int wallNormalTexture = TextureFromFile("resources/textures/brickwall_normal.jpg");
+
     // Configure shaders
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, wallNormalTexture);
@@ -307,7 +317,6 @@ int main()
     objectShader.setVec3("material.specular", 0.6f, 0.6f, 0.6f);
     objectShader.setFloat("material.shininess", 64.0f);
 
-    objectShader.setVec3("light.position", lightPos);
     objectShader.setVec3("light.ambient", 0.1f, 0.1f, 0.1f);
     objectShader.setVec3("light.diffuse", 0.75f, 0.75f, 0.75f);
     objectShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
@@ -315,6 +324,7 @@ int main()
     objectShader.setFloat("light.linear", 0.07f);
     objectShader.setFloat("light.quadratic", 0.017f);
 
+    objectShader.setVec3("lightPos", lightPos);
     objectShader.setInt("normalMap", 1);
  
     // Rendering loop

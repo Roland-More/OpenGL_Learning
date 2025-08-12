@@ -16,12 +16,20 @@
 #include "texture_loader.h"
 
 
+enum ModelLoadFlags {
+    ModelLoad_None        = 0,
+    ModelLoad_FlipUVs     = 1 << 0, // 0001
+    ModelLoad_Tangents    = 1 << 1, // 0010
+    // add more as needed
+};
+
 class Model 
 {
 public:
-    Model(const char *path, bool flipUVs)
+    Model(const char *path, unsigned int flags = ModelLoad_None)
     {
-        loadModel(path, flipUVs);
+        this->flags = flags;
+        loadModel(path);
     }
     void Draw(Shader& shader)
     {
@@ -45,15 +53,23 @@ public:
     }
 
 private:
+    unsigned int flags;
     // model data
     std::vector<Mesh> meshes;
     std::vector<Texture> textures_loaded;
     std::string directory;
 
-    void loadModel(std::string path, bool flipUVs)
+    void loadModel(std::string path)
     {
+        unsigned int assimpFlags = aiProcess_Triangulate;
+
+        if (flags & ModelLoad_FlipUVs)
+            assimpFlags |= aiProcess_FlipUVs;
+        if (flags & ModelLoad_Tangents)
+            assimpFlags |= aiProcess_CalcTangentSpace;
+
         Assimp::Importer import;
-        const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate | (flipUVs ? aiProcess_FlipUVs : 0));
+        const aiScene *scene = import.ReadFile(path, assimpFlags);
         
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) 
         {
@@ -92,7 +108,7 @@ private:
         {
             Vertex vertex;
 
-            // process vertex positions, normals and texture coordinates
+            // process vertex positions, normals, texture coordinates and if included, tangent vectors
             glm::vec3 vector;
 
             vector.x = mesh->mVertices[i].x;
@@ -117,6 +133,14 @@ private:
                 vertex.TexCoords = glm::vec2(0.0f, 0.0f);
             }
 
+            if (flags & ModelLoad_Tangents)
+            {
+                vector.x = mesh->mTangents[i].x;
+                vector.y = mesh->mTangents[i].y;
+                vector.z = mesh->mTangents[i].z;
+                vertex.Tangent = vector;
+            }
+
             vertices.push_back(vertex);
         }
 
@@ -138,10 +162,18 @@ private:
             std::vector<Texture> specularMaps = loadMaterialTextures(material,
                                                 aiTextureType_SPECULAR, "texture_specular");
             textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-        }  
 
-        return Mesh(vertices, indices, textures);
-    }  
+            if (ModelLoad_Tangents & flags)
+            {
+                std::vector<Texture> normalMaps = loadMaterialTextures(material,
+                                                    aiTextureType_HEIGHT, "texture_normal");
+                textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+            }
+        }
+        const bool hasTangents = flags & ModelLoad_Tangents;
+
+        return Mesh(vertices, indices, textures, hasTangents);
+    }
 
     std::vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type,
                             std::string typeName)

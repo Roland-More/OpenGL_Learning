@@ -21,6 +21,9 @@ struct Light {
 in VS_OUT {
     vec3 FragPos;
     vec2 TexCoords;
+    vec3 TangentLightPos;
+    vec3 TangentViewPos;
+    vec3 TangentFragPos;
 } fs_in;
 
 out vec4 FragColor;
@@ -74,11 +77,11 @@ float shadowCalculation(vec3 fragPos)
 void main()
 {
     // General
-    vec3 lightDir = normalize(light.position - fs_in.FragPos);
+    vec3 lightDir = normalize(fs_in.TangentLightPos - fs_in.TangentFragPos);
     vec3 norm = texture(normalMap, fs_in.TexCoords).rgb;
     norm = normalize(norm * 2 - 1.0);
 
-    float ldistance   = length(light.position - fs_in.FragPos);
+    float ldistance   = length(fs_in.TangentLightPos - fs_in.TangentFragPos);
     float attenuation = 1.0 / (light.constant + light.linear * ldistance + 
                             light.quadratic * ldistance * ldistance);
 
@@ -97,7 +100,7 @@ void main()
         diffuse = light.diffuse * diff * vec3(texture(material.diffuse, fs_in.TexCoords)) * attenuation; 
 
         // Specular
-        vec3 viewDir = normalize(viewPos - fs_in.FragPos);
+        vec3 viewDir = normalize(fs_in.TangentViewPos - fs_in.TangentFragPos);
         vec3 halfwayDir = normalize(viewDir + lightDir);  
 
         float spec = pow(max(dot(halfwayDir, norm), 0.0), material.shininess);
