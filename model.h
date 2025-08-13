@@ -16,10 +16,11 @@
 #include "texture_loader.h"
 
 
-enum ModelLoadFlags {
+enum ModelFlags {
     ModelLoad_None        = 0,
     ModelLoad_FlipUVs     = 1 << 0, // 0001
     ModelLoad_Tangents    = 1 << 1, // 0010
+    ModelLoad_GAMMA_CRCT  = 1 << 2, // 0100
     // add more as needed
 };
 
@@ -197,8 +198,12 @@ private:
             if (!skip)
             {
                 Texture texture;
-                texture.id = TextureFromFile(str.C_Str(), directory);
                 texture.type = typeName;
+
+                const std::string fullPath = directory + "/" + str.C_Str();
+                const Input_format format = flags & ModelLoad_GAMMA_CRCT ? GAMMA_CORRECTED : RGB;
+                texture.id = TextureFromFile(fullPath.c_str(), format);
+
                 texture.path = str.C_Str();
                 textures.push_back(texture);
                 textures_loaded.push_back(texture); // add to loaded textures

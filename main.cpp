@@ -96,11 +96,11 @@ int main()
     // Load shader porgrams
     // --------------------
     Shader sourceShader("shaders/vertex/3d.glsl", "shaders/fragment/simple_colors/white.glsl");
-    Shader objectShader("shaders/vertex/lighting/3d_lphong_norm.glsl", "shaders/fragment/lighting/Apointl_norm.glsl");
+    Shader objectShader("shaders/vertex/lighting/3d_lphong_norm.glsl", "shaders/fragment/lighting/Apointl_norm_pllx.glsl");
 
     // Set up uniforms and instancing buffer data
     // const glm::vec3 lightDirection = glm::vec3(2.0f, -4.0f, 1.0f);
-    const glm::vec3 lightPos = glm::vec3(1.5f, 1.0f, 1.5f);
+    const glm::vec3 lightPos = glm::vec3(2.0f, 1.0f, 1.5f);
 
     // Set up framebuffers
 
@@ -303,12 +303,15 @@ int main()
 
     // Configure texturing and load textures
     // ----------------------------------------------------------------------------
-    const unsigned int wallTexture = TextureFromFile("resources/textures/brickwall.jpg", GAMMA_CORRECTED);
-    const unsigned int wallNormalTexture = TextureFromFile("resources/textures/brickwall_normal.jpg");
+    const unsigned int wallTexture = TextureFromFile("resources/textures/bricks.jpg", GAMMA_CORRECTED);
+    const unsigned int wallNormalTexture = TextureFromFile("resources/textures/bricks_normal.jpg");
+    const unsigned int wallDepthTexture = TextureFromFile("resources/textures/bricks_disp.jpg");
 
     // Configure shaders
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, wallNormalTexture);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, wallDepthTexture);
 
     glActiveTexture(GL_TEXTURE0);
 
@@ -326,6 +329,9 @@ int main()
 
     objectShader.setVec3("lightPos", lightPos);
     objectShader.setInt("normalMap", 1);
+    objectShader.setInt("depthMap", 2);
+    
+    objectShader.setFloat("height_scale", 0.1f);
  
     // Rendering loop
     // --------------
