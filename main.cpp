@@ -95,14 +95,53 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader sourceShader("shaders/vertex/3d.glsl", "shaders/fragment/simple_colors/white.glsl");
-    Shader objectShader("shaders/vertex/lighting/3d_lphong_norm.glsl", "shaders/fragment/lighting/Apointl_norm_pllx.glsl");
+    Shader objectShader("shaders/vertex/lighting/3d_lphong.glsl", "shaders/fragment/lighting/adv-pointl_multi.glsl");
+    Shader hdrShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/lighting/hdr.glsl");
 
     // Set up uniforms and instancing buffer data
-    // const glm::vec3 lightDirection = glm::vec3(2.0f, -4.0f, 1.0f);
-    const glm::vec3 lightPos = glm::vec3(2.0f, 1.0f, 1.5f);
+    const glm::vec3 lightColors[4] = {
+        glm::vec3(200.0f, 200.0f, 200.0f),
+        glm::vec3(0.1f,   0.0f,   0.0f),
+        glm::vec3(0.0f,   0.0f,   0.2f),
+        glm::vec3(0.0f,   0.1f,   0.0f),
+    };
+
+    const glm::vec3 lightPositions[4] = {
+        glm::vec3(0.0f, 0.0f, -4.9f),
+        glm::vec3(0.1f, -0.1f, 3.25f),
+        glm::vec3(0.0f, -0.2f,  3.75f),
+        glm::vec3(-0.1f, -0.1f, 3.5f),
+    };
 
     // Set up framebuffers
+    unsigned int hdrFBO;
+    glGenFramebuffers(1, &hdrFBO);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+
+    // generate texture to render to
+    unsigned int colorBuffer;
+    glGenTextures(1, &colorBuffer);
+
+    glBindTexture(GL_TEXTURE_2D, colorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Generate renderbuffer for depth
+    unsigned int hdrRBO;
+    glGenRenderbuffers(1, &hdrRBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, hdrRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, SCR_WIDTH, SCR_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, hdrRBO);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Load models
 
@@ -209,7 +248,7 @@ int main()
     };
 
     // Get tangent space vectors
-    const auto [tangent1, bitangent1, tangent2, bitangent2] = computeTangentSpace();
+    const auto [tangent1, bitangent1, tangent2, bitangent2] = computeWallTangentSpace();
 
     const float wallVertices[] = {
         // positions         // normals         // tex coords // tangents                        // bitangents
@@ -228,6 +267,16 @@ int main()
         20.0f,  0.0f,  20.0f,   0.0f, 1.0f, 0.0f,  5.0f, 5.0f,
         -20.0f,  0.0f, -20.0f,  0.0f, 1.0f, 0.0f,  -3.0f, -3.0f,
         -20.0f,  0.0f,  20.0f,  0.0f, 1.0f, 0.0f,  -3.0f, 5.0f,
+    };
+
+    const float quadVertices[] = {
+        -1.0f,  1.0f,   0.0f, 1.0f,  // Top-left
+        -1.0f, -1.0f,   0.0f, 0.0f,  // Bottom-left
+        1.0f, -1.0f,   1.0f, 0.0f,  // Bottom-right
+
+        -1.0f,  1.0f,   0.0f, 1.0f,  // Top-left
+        1.0f, -1.0f,   1.0f, 0.0f,  // Bottom-right
+        1.0f,  1.0f,   1.0f, 1.0f,   // Top-right
     };
 
 
@@ -299,40 +348,56 @@ int main()
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
 
+    // quad VAO
+    unsigned int quadVAO, quadVBO;
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
     glBindVertexArray(0);
 
     // Configure texturing and load textures
     // ----------------------------------------------------------------------------
-    const unsigned int wallTexture = TextureFromFile("resources/textures/bricks.jpg", GAMMA_CORRECTED);
-    const unsigned int wallNormalTexture = TextureFromFile("resources/textures/bricks_normal.jpg");
-    const unsigned int wallDepthTexture = TextureFromFile("resources/textures/bricks_disp.jpg");
+    const unsigned int roomTexture = TextureFromFile("resources/textures/wood.png", GAMMA_CORRECTED);
 
     // Configure shaders
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, wallNormalTexture);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, wallDepthTexture);
-
     glActiveTexture(GL_TEXTURE0);
 
     objectShader.use();
     objectShader.setInt("material.diffuse", 0);
-    objectShader.setVec3("material.specular", 0.6f, 0.6f, 0.6f);
+    objectShader.setVec3("material.specular", 0.0f, 0.0f, 0.0f);
     objectShader.setFloat("material.shininess", 64.0f);
 
-    objectShader.setVec3("light.ambient", 0.1f, 0.1f, 0.1f);
-    objectShader.setVec3("light.diffuse", 0.75f, 0.75f, 0.75f);
-    objectShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
-    objectShader.setFloat("light.constant", 1.0f);
-    objectShader.setFloat("light.linear", 0.07f);
-    objectShader.setFloat("light.quadratic", 0.017f);
+    objectShader.setVec3("lights[0].position", lightPositions[0]);
+    objectShader.setVec3("lights[0].diffuse", lightColors[0]);
+    objectShader.setVec3("lights[0].specular", 0.0f, 0.0f, 0.0f);
 
-    objectShader.setVec3("lightPos", lightPos);
-    objectShader.setInt("normalMap", 1);
-    objectShader.setInt("depthMap", 2);
-    
-    objectShader.setFloat("height_scale", 0.1f);
- 
+    objectShader.setVec3("lights[1].position", lightPositions[1]);
+    objectShader.setVec3("lights[1].diffuse", lightColors[1]);
+    objectShader.setVec3("lights[1].specular", 0.0f, 0.0f, 0.0f);
+
+    objectShader.setVec3("lights[2].position", lightPositions[2]);
+    objectShader.setVec3("lights[2].diffuse", lightColors[2]);
+    objectShader.setVec3("lights[2].specular", 0.0f, 0.0f, 0.0f);
+
+    objectShader.setVec3("lights[3].position", lightPositions[3]);
+    objectShader.setVec3("lights[3].diffuse", lightColors[3]);
+    objectShader.setVec3("lights[3].specular", 0.0f, 0.0f, 0.0f);
+
+    objectShader.setVec3("ambient", 0.1f, 0.1f, 0.1f);
+
+    hdrShader.use();
+    hdrShader.setInt("hdrBuffer", 0);
+    hdrShader.setFloat("exposure", 0.15f);
+
     // Rendering loop
     // --------------
     while (!glfwWindowShouldClose(window))
@@ -351,44 +416,46 @@ int main()
 
         // Scene
         // -----
+        glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
 
         const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         const glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
         glm::mat3 normalModel = glm::mat3(1.0f);
 
-        // light source
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, lightPos);
-        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
-
-        sourceShader.use();
-        sourceShader.setMat4("projection", projection);
-        sourceShader.setMat4("view", view);
-        sourceShader.setMat4("model", model);
-
-        glBindVertexArray(cubeVAO);
-
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        // wall
-        model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
-        // normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
+        // Tunnel
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 10.0f));
+        normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
         objectShader.use();
         objectShader.setMat4("projection", projection);
         objectShader.setMat4("view", view);
         objectShader.setMat4("model", model);
-        // objectShader.setMat3("normalModel", normalModel);
+        objectShader.setMat3("normalModel", normalModel);
 
         objectShader.setVec3("viewPos", camera.Position);
 
-        glBindTexture(GL_TEXTURE_2D, wallTexture);
-        glBindVertexArray(wallVAO);
-        
+        glBindTexture(GL_TEXTURE_2D, roomTexture);
+        glBindVertexArray(outCubeVAO);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // Render to the main framebuffer
+        // ------------------------------
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDisable(GL_DEPTH_TEST);
+
+        // Apply tone mapping
+        hdrShader.use();
+
+        glBindTexture(GL_TEXTURE_2D, colorBuffer);
+        glBindVertexArray(quadVAO);
+
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         // End of rendering

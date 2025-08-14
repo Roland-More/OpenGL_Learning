@@ -10,7 +10,7 @@ struct tangentVectors {
     glm::vec3 bitangent2;
 };
 
-constexpr tangentVectors computeTangentSpace()
+constexpr tangentVectors computeWallTangentSpace()
 {
     // Calculating Tangent space vectors
 
