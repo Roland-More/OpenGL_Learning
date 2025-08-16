@@ -98,7 +98,7 @@ int main()
     Shader objectShader("shaders/vertex/lighting/3d_lphong.glsl", "shaders/fragment/lighting/adv-point4l_bloom.glsl");
     Shader sourceShader("shaders/vertex/3d.glsl", "shaders/fragment/simple_colors/col_bloom.glsl");
     Shader blurShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/lighting/bloom_blur.glsl");
-    Shader hdrShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/lighting/hdr.glsl");
+    Shader hdrShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/lighting/hdrbloom.glsl");
 
     // Set up uniforms and instancing buffer data
     const glm::vec3 lightColors[4] = {
@@ -405,7 +405,15 @@ int main()
     const unsigned int containerTexture = TextureFromFile("resources/textures/container2.png", GAMMA_CORRECTED);
 
     // Configure shaders
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, pingpongBuffers[0]);
+
     glActiveTexture(GL_TEXTURE0);
+
+    hdrShader.use();
+    hdrShader.setInt("hdrBuffer", 0);
+    hdrShader.setInt("bloomBlur", 1);
+    hdrShader.setFloat("exposure", 0.6f);
 
     objectShader.use();
     objectShader.setInt("material.diffuse", 0);
@@ -429,10 +437,6 @@ int main()
     objectShader.setVec3("lights[3].specular", lightColors[3]);
 
     objectShader.setVec3("ambient", 0.1f, 0.1f, 0.1f);
-
-    hdrShader.use();
-    hdrShader.setInt("hdrBuffer", 0);
-    hdrShader.setFloat("exposure", 0.6f);
 
     // Rendering loop
     // --------------
@@ -593,7 +597,7 @@ int main()
         // Apply tone mapping
         hdrShader.use();
 
-        glBindTexture(GL_TEXTURE_2D, pingpongBuffers[1]);
+        glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
         glBindVertexArray(quadVAO);
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
