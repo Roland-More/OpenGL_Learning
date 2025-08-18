@@ -95,10 +95,10 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader objectShader("shaders/vertex/lighting/3d_lphong.glsl", "shaders/fragment/lighting/adv-point4l_bloom.glsl");
-    Shader sourceShader("shaders/vertex/3d.glsl", "shaders/fragment/simple_colors/col_bloom.glsl");
-    Shader blurShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/lighting/bloom_blur.glsl");
-    Shader hdrShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/lighting/hdrbloom.glsl");
+    Shader gPassObjectShader("shaders/vertex/lighting/3d_lphong.glsl", "shaders/fragment/deferred/geom_passl.glsl");
+    Shader lightingObjectShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/deferred/adv-point4lst.glsl");
+
+    Shader sourceShader("shaders/vertex/3d.glsl", "shaders/fragment/simple_colors/col1.glsl");
 
     // Set up uniforms and instancing buffer data
     const glm::vec3 lightColors[4] = {
@@ -117,35 +117,71 @@ int main()
 
 
     // Set up framebuffers
+
+    // geometry pass framebuffer
+    unsigned int gBuffer;
+    glGenFramebuffers(1, &gBuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+    unsigned int gPosition, gNormal, gAlbedoSpec;
+    
+    // - position color buffer
+    glGenTextures(1, &gPosition);
+    glBindTexture(GL_TEXTURE_2D, gPosition);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+    
+    // - normal color buffer
+    glGenTextures(1, &gNormal);
+    glBindTexture(GL_TEXTURE_2D, gNormal);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+    
+    // - color + specular color buffer
+    glGenTextures(1, &gAlbedoSpec);
+    glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
+    
+    // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+    unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+    glDrawBuffers(3, attachments);
+
+    unsigned int gDepth;
+    glGenRenderbuffers(1, &gDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, gDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, SCR_WIDTH, SCR_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, gDepth);
+
+    // hdr framebuffer
     unsigned int hdrFBO;
     glGenFramebuffers(1, &hdrFBO);
 
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
 
     // generate texture to render to
-    unsigned int colorBuffers[2];
-    glGenTextures(2, colorBuffers);
+    unsigned int colorBuffer;
+    glGenTextures(1, &colorBuffer);
 
-    for (unsigned int i = 0; i < 2; i++)
-    {
-        glBindTexture(GL_TEXTURE_2D, colorBuffers[i]);
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL
-        );
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        // attach texture to framebuffer
-        glFramebufferTexture2D(
-            GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffers[i], 0
-        );
-    }
+    glBindTexture(GL_TEXTURE_2D, colorBuffer);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL
+    );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // attach texture to framebuffer
+    glFramebufferTexture2D(
+        GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0
+    );
 
     glBindTexture(GL_TEXTURE_2D, 0);
-
-    unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-    glDrawBuffers(2, attachments);
 
     // Generate renderbuffer for depth
     unsigned int hdrRBO;
@@ -154,28 +190,6 @@ int main()
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, SCR_WIDTH, SCR_HEIGHT);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, hdrRBO);
 
-    // framebuffers for blurring (bloom effect)
-    unsigned int pingpongFBO[2];
-    unsigned int pingpongBuffers[2];
-    glGenFramebuffers(2, pingpongFBO);
-    glGenTextures(2, pingpongBuffers);
-    for (unsigned int i = 0; i < 2; i++)
-    {
-        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
-        glBindTexture(GL_TEXTURE_2D, pingpongBuffers[i]);
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL
-        );
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glFramebufferTexture2D(
-            GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongBuffers[i], 0
-        );
-    }
-
-    glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Load models
@@ -403,40 +417,37 @@ int main()
     // ----------------------------------------------------------------------------
     const unsigned int floorTexture = TextureFromFile("resources/textures/wood.png", GAMMA_CORRECTED);
     const unsigned int containerTexture = TextureFromFile("resources/textures/container2.png", GAMMA_CORRECTED);
+    const unsigned int containerSpecTexture = TextureFromFile("resources/textures/container2_specular.png");
 
-    // Configure shaders
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, pingpongBuffers[0]);
+    gPassObjectShader.use();
+    gPassObjectShader.setInt("texture_diffuse1", 0);
+    gPassObjectShader.setInt("texture_specular1", 1);
 
-    glActiveTexture(GL_TEXTURE0);
+    lightingObjectShader.use();
+    lightingObjectShader.setInt("gPosition", 0);
+    lightingObjectShader.setInt("gNormal", 1);
+    lightingObjectShader.setInt("gAlbedoSpec", 2);
 
-    hdrShader.use();
-    hdrShader.setInt("hdrBuffer", 0);
-    hdrShader.setInt("bloomBlur", 1);
-    hdrShader.setFloat("exposure", 0.6f);
+    lightingObjectShader.setFloat("shininess", 32.0f);
+    lightingObjectShader.setVec3("ambient", 0.1f, 0.1f, 0.1f);
 
-    objectShader.use();
-    objectShader.setInt("material.diffuse", 0);
-    objectShader.setVec3("material.specular", 0.5f, 0.5f, 0.5f);
-    objectShader.setFloat("material.shininess", 32.0f);
+    lightingObjectShader.setVec3("lights[0].position", lightPositions[0]);
+    lightingObjectShader.setVec3("lights[0].diffuse", lightColors[0]);
+    lightingObjectShader.setVec3("lights[0].specular", lightColors[0]);
 
-    objectShader.setVec3("lights[0].position", lightPositions[0]);
-    objectShader.setVec3("lights[0].diffuse", lightColors[0]);
-    objectShader.setVec3("lights[0].specular", lightColors[0]);
+    lightingObjectShader.setVec3("lights[1].position", lightPositions[1]);
+    lightingObjectShader.setVec3("lights[1].diffuse", lightColors[1]);
+    lightingObjectShader.setVec3("lights[1].specular", lightColors[1]);
 
-    objectShader.setVec3("lights[1].position", lightPositions[1]);
-    objectShader.setVec3("lights[1].diffuse", lightColors[1]);
-    objectShader.setVec3("lights[1].specular", lightColors[1]);
+    lightingObjectShader.setVec3("lights[2].position", lightPositions[2]);
+    lightingObjectShader.setVec3("lights[2].diffuse", lightColors[2]);
+    lightingObjectShader.setVec3("lights[2].specular", lightColors[2]);
 
-    objectShader.setVec3("lights[2].position", lightPositions[2]);
-    objectShader.setVec3("lights[2].diffuse", lightColors[2]);
-    objectShader.setVec3("lights[2].specular", lightColors[2]);
+    lightingObjectShader.setVec3("lights[3].position", lightPositions[3]);
+    lightingObjectShader.setVec3("lights[3].diffuse", lightColors[3]);
+    lightingObjectShader.setVec3("lights[3].specular", lightColors[3]);
 
-    objectShader.setVec3("lights[3].position", lightPositions[3]);
-    objectShader.setVec3("lights[3].diffuse", lightColors[3]);
-    objectShader.setVec3("lights[3].specular", lightColors[3]);
-
-    objectShader.setVec3("ambient", 0.1f, 0.1f, 0.1f);
+    lightingObjectShader.setFloat("exposure", 0.6f);
 
     // Rendering loop
     // --------------
@@ -456,7 +467,7 @@ int main()
 
         // Scene
         // -----
-        glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
@@ -472,15 +483,18 @@ int main()
         model = glm::scale(model, glm::vec3(25.0f, 1.0f, 25.0f));
         normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
-        objectShader.use();
-        objectShader.setMat4("projection", projection);
-        objectShader.setMat4("view", view);
-        objectShader.setVec3("viewPos", camera.Position);
+        gPassObjectShader.use();
+        gPassObjectShader.setMat4("projection", projection);
+        gPassObjectShader.setMat4("view", view);
 
-        objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
+        gPassObjectShader.setMat4("model", model);
+        gPassObjectShader.setMat3("normalModel", normalModel);
 
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, containerSpecTexture);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
+
         glBindVertexArray(cubeVAO);
         
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -491,11 +505,11 @@ int main()
         model = glm::scale(model, glm::vec3(0.5f * 2));
         normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
-        objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
-        
-        glBindTexture(GL_TEXTURE_2D, containerTexture);
+        gPassObjectShader.setMat4("model", model);
+        gPassObjectShader.setMat3("normalModel", normalModel);
 
+        glBindTexture(GL_TEXTURE_2D, containerTexture);
+        
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
         model = glm::mat4(1.0f);
@@ -503,8 +517,8 @@ int main()
         model = glm::scale(model, glm::vec3(0.5f * 2));
         normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
-        objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
+        gPassObjectShader.setMat4("model", model);
+        gPassObjectShader.setMat3("normalModel", normalModel);
         
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -514,8 +528,8 @@ int main()
         model = glm::scale(model, glm::vec3(2.0f));
         normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
-        objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
+        gPassObjectShader.setMat4("model", model);
+        gPassObjectShader.setMat3("normalModel", normalModel);
         
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -525,8 +539,8 @@ int main()
         model = glm::scale(model, glm::vec3(1.25f * 2));
         normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
-        objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
+        gPassObjectShader.setMat4("model", model);
+        gPassObjectShader.setMat3("normalModel", normalModel);
         
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -536,8 +550,8 @@ int main()
         model = glm::scale(model, glm::vec3(2.0f));
         normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
-        objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
+        gPassObjectShader.setMat4("model", model);
+        gPassObjectShader.setMat3("normalModel", normalModel);
         
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -546,15 +560,47 @@ int main()
         model = glm::scale(model, glm::vec3(0.5f * 2));
         normalModel = glm::transpose(glm::inverse(glm::mat3(model)));
 
-        objectShader.setMat4("model", model);
-        objectShader.setMat3("normalModel", normalModel);
+        gPassObjectShader.setMat4("model", model);
+        gPassObjectShader.setMat3("normalModel", normalModel);
         
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        // lights
+        // Render to the main framebuffer
+        // ------------------------------
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDisable(GL_DEPTH_TEST);
+
+        lightingObjectShader.use();
+        lightingObjectShader.setVec3("viewPos", camera.Position);
+
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, gNormal);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, gPosition);
+        glBindVertexArray(quadVAO);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        // Copy depth to the main fb for additional rendering
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
+        glBlitFramebuffer(
+        0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST
+        );
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // Render light sources
+        glEnable(GL_DEPTH_TEST);
+
         sourceShader.use();
-        sourceShader.setMat4("view", view);
         sourceShader.setMat4("projection", projection);
+        sourceShader.setMat4("view", view);
+
+        glBindVertexArray(cubeVAO);
 
         for (int i = 0; i < 4; i++)
         {
@@ -567,40 +613,6 @@ int main()
 
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
-
-        // Blur the bright colors
-        // ----------------------
-        bool horizontal = true, first_iteration = true;
-        int amount = 10;
-        blurShader.use();
-        glBindVertexArray(quadVAO);
-        for (unsigned int i = 0; i < amount; i++)
-        {
-            glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]); 
-            blurShader.setInt("horizontal", horizontal);
-            glBindTexture(
-                GL_TEXTURE_2D, first_iteration ? colorBuffers[1] : pingpongBuffers[!horizontal]
-            ); 
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-            horizontal = !horizontal;
-            if (first_iteration)
-                first_iteration = false;
-        }
-
-        // Render to the main framebuffer
-        // ------------------------------
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
-
-        // Apply tone mapping
-        hdrShader.use();
-
-        glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
-        glBindVertexArray(quadVAO);
-
-        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         // End of rendering
         glBindVertexArray(0);
