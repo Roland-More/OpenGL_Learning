@@ -71,7 +71,6 @@ void main()
     // Lighting Result
     result += ambient;
 
-    // FragColor = vec4(result, 1.0);
     // gamma correction + hdr
     const float gamma = 2.2;
     // exposure tone mapping
