@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include <random>
 
 #include <glad/glad.h> // Glad sa importuje pred glfw
 #include <GLFW/glfw3.h>
@@ -103,31 +102,34 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    Shader gPassPBRShader("shaders/vertex/lighting/3d_PBR.glsl", "shaders/fragment/deferred/PBR/g_passPBR.glsl");
-    Shader lPassPBRShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/deferred/PBR/l_passtex.glsl");
+    // Shader gPassPBRShader("shaders/vertex/lighting/3d_PBR.glsl", "shaders/fragment/deferred/PBR/g_passPBR.glsl");
+    // Shader lPassPBRShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/deferred/PBR/l_passtex_IBLd.glsl");
+
+    Shader PBRShader("shaders/vertex/lighting/3d_PBR.glsl", "shaders/fragment/PBR/surface_model_IBLd.glsl");
+
     Shader skyboxShader("shaders/vertex/cubemap.glsl", "shaders/fragment/cubemap/skyboxhrd.glsl");
 
     Shader equirectangularShader("shaders/vertex/equirectangular.glsl", "shaders/fragment/equirectangular.glsl");
     Shader irradianceShader("shaders/vertex/equirectangular.glsl", "shaders/fragment/cubemap/cubemap_convolute.glsl");
 
     // Set up uniforms and buffer data
-    glm::vec3 lightPositions[] = {
+    const glm::vec3 lightPositions[] = {
         glm::vec3(-10.0f,  10.0f, 10.0f),
         glm::vec3( 10.0f,  10.0f, 10.0f),
         glm::vec3(-10.0f, -10.0f, 10.0f),
         glm::vec3( 10.0f, -10.0f, 10.0f),
     };
 
-    glm::vec3 lightColors[] = {
+    const glm::vec3 lightColors[] = {
         glm::vec3(300.0f, 300.0f, 300.0f),
         glm::vec3(300.0f, 300.0f, 300.0f),
         glm::vec3(300.0f, 300.0f, 300.0f),
         glm::vec3(300.0f, 300.0f, 300.0f)
     };
 
-    int nrRows    = 7;
-    int nrColumns = 7;
-    float spacing = 2.5f;
+    const int nrRows    = 7;
+    const int nrColumns = 7;
+    const float spacing = 2.5f;
 
     // Load textures
     // -------------
@@ -282,124 +284,38 @@ int main()
 
     // Load models
 
-    // set up vertex data (and buffer(s)) and configure vertex attributes
-    // ------------------------------------------------------------------
-    const float outCubeVertices[] = {
-        // Back face (z = -0.5)
-        -0.5f, -0.5f, -0.5f,   0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,   0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,   0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,   0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,   0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,   0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
-
-        // Front face (z = +0.5)
-        -0.5f, -0.5f,  0.5f,   0.0f,  0.0f,  -1.0f,   0.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,   0.0f,  0.0f,  -1.0f,   1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,   0.0f,  0.0f,  -1.0f,   1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,   0.0f,  0.0f,  -1.0f,   1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,   0.0f,  0.0f,  -1.0f,   0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,   0.0f,  0.0f,  -1.0f,   0.0f, 0.0f,
-
-        // Left face (x = -0.5)
-        -0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
-
-        // Right face (x = +0.5)
-        0.5f,  0.5f,  0.5f,   -1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,   -1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,   -1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,   -1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,   -1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,   -1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
-
-        // Bottom face (y = -0.5)
-        -0.5f, -0.5f, -0.5f,   0.0f, 1.0f,  0.0f,   0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,   0.0f, 1.0f,  0.0f,   1.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,   0.0f, 1.0f,  0.0f,   1.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,   0.0f, 1.0f,  0.0f,   1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,   0.0f, 1.0f,  0.0f,   0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,   0.0f, 1.0f,  0.0f,   0.0f, 1.0f,
-
-        // Top face (y = +0.5)
-        -0.5f,  0.5f, -0.5f,   0.0f,  -1.0f,  0.0f,   0.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,   0.0f,  -1.0f,  0.0f,   1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,   0.0f,  -1.0f,  0.0f,   1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,   0.0f,  -1.0f,  0.0f,   1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,   0.0f,  -1.0f,  0.0f,   0.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,   0.0f,  -1.0f,  0.0f,   0.0f, 0.0f,
-    };
-
-    const float floorVertices[] = {
-        -20.0f,  0.0f, -20.0f,  0.0f, 1.0f, 0.0f,  -3.0f, -3.0f,
-        20.0f,  0.0f,  20.0f,   0.0f, 1.0f, 0.0f,  5.0f, 5.0f,
-        20.0f,  0.0f, -20.0f,   0.0f, 1.0f, 0.0f,  5.0f, -3.0f,
-        20.0f,  0.0f,  20.0f,   0.0f, 1.0f, 0.0f,  5.0f, 5.0f,
-        -20.0f,  0.0f, -20.0f,  0.0f, 1.0f, 0.0f,  -3.0f, -3.0f,
-        -20.0f,  0.0f,  20.0f,  0.0f, 1.0f, 0.0f,  -3.0f, 5.0f,
-    };
-    
-    // out cube VAO
-    unsigned int outCubeVAO, outCubeVBO;
-    glGenVertexArrays(1, &outCubeVAO);
-    glGenBuffers(1, &outCubeVBO);
-
-    glBindVertexArray(outCubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, outCubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(outCubeVertices), outCubeVertices, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-
-    // floor VAO
-    unsigned int floorVAO, floorVBO;
-    glGenVertexArrays(1, &floorVAO);
-    glGenBuffers(1, &floorVBO);
-
-    glBindVertexArray(floorVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, floorVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(floorVertices), floorVertices, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-
-    glBindVertexArray(0);
-
     // Configure shaders
     // -----------------
-    gPassPBRShader.use();
-    gPassPBRShader.setInt("albedoMap", 0);
-    gPassPBRShader.setInt("normalMap", 1);
-    gPassPBRShader.setInt("metallicMap", 2);
-    gPassPBRShader.setInt("roughnessMap", 3);
-    gPassPBRShader.setInt("aoMap", 4);
-
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, ballRoughnessTexture);
-    glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, ballAoTexture);
-
-    lPassPBRShader.use();
-    lPassPBRShader.setInt("PositionMetallicMap", 0);
-    lPassPBRShader.setInt("normalRoughnessMap", 1);
-    lPassPBRShader.setInt("AlbedoAoMap", 2);
+    PBRShader.use();
+    PBRShader.setVec3("albedo", 0.5f, 0.0f, 0.0f);
+    PBRShader.setFloat("ao", 1.0f);
+    PBRShader.setInt("irradianceMap", 0);
     for (int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); i++)
     {
-        lPassPBRShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
-        lPassPBRShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+        PBRShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
+        PBRShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
     }
+
+    // gPassPBRShader.use();
+    // gPassPBRShader.setInt("albedoMap", 0);
+    // gPassPBRShader.setInt("normalMap", 1);
+    // gPassPBRShader.setInt("metallicMap", 2);
+    // gPassPBRShader.setInt("roughnessMap", 3);
+    // gPassPBRShader.setInt("aoMap", 4);
+
+    // glActiveTexture(GL_TEXTURE4);
+    // glBindTexture(GL_TEXTURE_2D, ballAoTexture);
+
+    // lPassPBRShader.use();
+    // lPassPBRShader.setInt("PositionMetallicMap", 0);
+    // lPassPBRShader.setInt("normalRoughnessMap", 1);
+    // lPassPBRShader.setInt("AlbedoAoMap", 2);
+    // lPassPBRShader.setInt("irradianceMap", 3);
+    // for (int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); i++)
+    // {
+    //     lPassPBRShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
+    //     lPassPBRShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+    // }
 
     skyboxShader.use();
     skyboxShader.setInt("environmentMap", 0);
@@ -423,39 +339,111 @@ int main()
 
         // Geometry Pass
         // -------------
-        glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
+        // glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+        // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // glEnable(GL_DEPTH_TEST);
 
         const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         const glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
 
-        gPassPBRShader.use();
-        gPassPBRShader.setMat4("projection", projection);
-        gPassPBRShader.setMat4("view", view);
+        // gPassPBRShader.use();
+        // gPassPBRShader.setMat4("projection", projection);
+        // gPassPBRShader.setMat4("view", view);
+
+        // glActiveTexture(GL_TEXTURE0);
+        // glBindTexture(GL_TEXTURE_2D, ballAlbedoTexture);
+        // glActiveTexture(GL_TEXTURE1);
+        // glBindTexture(GL_TEXTURE_2D, ballNormalTexture);
+        // glActiveTexture(GL_TEXTURE2);
+        // glBindTexture(GL_TEXTURE_2D, ballMetallicTexture);
+        // glActiveTexture(GL_TEXTURE3);
+        // glBindTexture(GL_TEXTURE_2D, ballRoughnessTexture);
+
+        // // render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
+        // for (int row = 0; row < nrRows; ++row) 
+        // {
+        //     for (int col = 0; col < nrColumns; ++col) 
+        //     {
+        //         model = glm::mat4(1.0f);
+        //         model = glm::translate(model, glm::vec3(
+        //             (col - (nrColumns / 2)) * spacing, 
+        //             (row - (nrRows / 2)) * spacing, 
+        //             0.0f
+        //         ));
+        //         gPassPBRShader.setMat4("model", model);
+        //         gPassPBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+        //         renderSphere();
+        //     }
+        // }
+
+        // // render light source (simply re-render sphere at light positions)
+        // // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
+        // // keeps the codeprint small.
+        // for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
+        // {
+        //     model = glm::mat4(1.0f);
+        //     model = glm::translate(model, lightPositions[i]);
+        //     model = glm::scale(model, glm::vec3(0.5f));
+        //     gPassPBRShader.setMat4("model", model);
+        //     gPassPBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+        //     renderSphere();
+        // }
+
+        // // Lighting Pass
+        // // -------------
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        // glClear(GL_COLOR_BUFFER_BIT);
+        // glDisable(GL_DEPTH_TEST);
+
+        // lPassPBRShader.use();
+        // lPassPBRShader.setVec3("camPos", camera.Position);
+
+        // glActiveTexture(GL_TEXTURE0);
+        // glBindTexture(GL_TEXTURE_2D, gPositionMetallic);
+        // glActiveTexture(GL_TEXTURE1);
+        // glBindTexture(GL_TEXTURE_2D, gNormalRougness);
+        // glActiveTexture(GL_TEXTURE2);
+        // glBindTexture(GL_TEXTURE_2D, gAlbedoAo);
+        // glActiveTexture(GL_TEXTURE3);
+        // glBindTexture(GL_TEXTURE_2D, irradianceMap);
+
+        // renderQuad();
+
+        // Scene w/out deffered shading
+        // ----------------------------
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+
+        PBRShader.use();
+        PBRShader.setMat4("projection", projection);
+        PBRShader.setMat4("view", view);
+        PBRShader.setVec3("camPos", camera.Position);
 
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, ballAlbedoTexture);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, ballNormalTexture);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, ballMetallicTexture);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
 
-        // render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
         for (int row = 0; row < nrRows; ++row) 
         {
+            PBRShader.setFloat("metallic", (float)row / (float)nrRows);
             for (int col = 0; col < nrColumns; ++col) 
             {
+                // we limit the roughness to a minimum value of 0.05
+                // on direct lighting.
+                PBRShader.setFloat("roughness", glm::max((float)col / (float)nrColumns, 0.05f));
+                
                 model = glm::mat4(1.0f);
                 model = glm::translate(model, glm::vec3(
                     (col - (nrColumns / 2)) * spacing, 
                     (row - (nrRows / 2)) * spacing, 
                     0.0f
                 ));
-                gPassPBRShader.setMat4("model", model);
-                gPassPBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+                PBRShader.setMat4("model", model);
+                PBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
                 renderSphere();
             }
         }
@@ -468,37 +456,19 @@ int main()
             model = glm::mat4(1.0f);
             model = glm::translate(model, lightPositions[i]);
             model = glm::scale(model, glm::vec3(0.5f));
-            gPassPBRShader.setMat4("model", model);
-            gPassPBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+
+            PBRShader.setMat4("model", model);
+            PBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
             renderSphere();
         }
-
-        // Lighting Pass
-        // -------------
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
-
-        lPassPBRShader.use();
-        lPassPBRShader.setVec3("camPos", camera.Position);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, gPositionMetallic);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, gNormalRougness);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, gAlbedoAo);
-
-        renderQuad();
 
         // Additional rendering
         // --------------------
 
         // Copy depth from gBuffer to default framebuffer
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-        glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        // glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+        // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        // glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
         // Skybox
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -509,7 +479,7 @@ int main()
         skyboxShader.setMat4("view", view);
 
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
         renderCube();
 
