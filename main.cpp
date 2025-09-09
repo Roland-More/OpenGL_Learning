@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <cmath>
 
 #include <glad/glad.h> // Glad sa importuje pred glfw
 #include <GLFW/glfw3.h>
@@ -99,6 +100,9 @@ int main()
 
     // Enable MSAA (Multi Sample Anti-Aliasing)
     glEnable(GL_MULTISAMPLE);
+
+    // Enable seamless cubemap sampling for prefiltered cubemaps with mipmaps
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
     // Load shader porgrams
     // --------------------
