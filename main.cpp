@@ -428,7 +428,7 @@ int main()
         glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
+        // glEnable(GL_DEPTH_TEST);
 
         const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         const glm::mat4 view = camera.GetViewMatrix();
@@ -541,22 +541,22 @@ int main()
         // --------------------
 
         // Copy depth from gBuffer to default framebuffer
-        // glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-        // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-        // glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+        glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
-        // // Skybox
-        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        // glEnable(GL_DEPTH_TEST);
+        // Skybox
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glEnable(GL_DEPTH_TEST);
 
-        // skyboxShader.use();
-        // skyboxShader.setMat4("projection", projection);
-        // skyboxShader.setMat4("view", view);
+        skyboxShader.use();
+        skyboxShader.setMat4("projection", projection);
+        skyboxShader.setMat4("view", view);
 
-        // glActiveTexture(GL_TEXTURE0);
-        // glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
-        // renderCube();
+        renderCube();
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
