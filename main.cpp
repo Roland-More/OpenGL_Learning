@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "texture_loader.h"
 #include "render_shapes.h"
+#include "PBR_material.h"
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height); // Update viewportu
@@ -106,10 +107,10 @@ int main()
 
     // Load shader porgrams
     // --------------------
-    // Shader gPassPBRShader("shaders/vertex/lighting/3d_PBR.glsl", "shaders/fragment/deferred/PBR/g_passPBR.glsl");
-    // Shader lPassPBRShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/deferred/PBR/l_passtex_IBLd.glsl");
+    Shader gPassPBRShader("shaders/vertex/lighting/3d_PBR.glsl", "shaders/fragment/deferred/PBR/g_passPBR.glsl");
+    Shader lPassPBRShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/deferred/PBR/l_passtex_IBL.glsl");
 
-    Shader PBRShader("shaders/vertex/lighting/3d_PBR.glsl", "shaders/fragment/PBR/surface_model_IBLd.glsl");
+    // Shader PBRShader("shaders/vertex/lighting/3d_PBR.glsl", "shaders/fragment/PBR/surface_model_IBL.glsl");
 
     Shader skyboxShader("shaders/vertex/cubemap.glsl", "shaders/fragment/cubemap/skyboxhrd.glsl");
 
@@ -139,11 +140,12 @@ int main()
 
     // Load textures
     // -------------
-    const unsigned int ballAlbedoTexture = TextureFromFile("resources/textures/rusted_iron/basecolor.png");
-    const unsigned int ballNormalTexture = TextureFromFile("resources/textures/rusted_iron/normal.png");
-    const unsigned int ballMetallicTexture = TextureFromFile("resources/textures/rusted_iron/metallic.png");
-    const unsigned int ballRoughnessTexture = TextureFromFile("resources/textures/rusted_iron/roughness.png");
-    const unsigned int ballAoTexture = TextureFromFile("resources/textures/rusted_iron/ao.png");
+    const unsigned int MATERIAL_COUNT = 3;
+    const PBRMaterial materials[MATERIAL_COUNT] = {
+        PBRMaterial("resources/textures/PBR_materials/carbon-fiber"),
+        PBRMaterial("resources/textures/PBR_materials/rusted_iron"),
+        PBRMaterial("resources/textures/PBR_materials/gold-scuffed"),
+    };
 
     const unsigned int hdrTexture = loadHdrTexture("resources/textures/equirectangular/ibl_hdr_radiance.png");
 
@@ -348,6 +350,7 @@ int main()
         }
     }
 
+    // Generate BRDF lookup texture
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
@@ -364,36 +367,41 @@ int main()
 
     // Configure shaders
     // -----------------
-    PBRShader.use();
-    PBRShader.setVec3("albedo", 0.5f, 0.0f, 0.0f);
-    PBRShader.setFloat("ao", 1.0f);
-    PBRShader.setInt("irradianceMap", 0);
-    for (int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); i++)
-    {
-        PBRShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
-        PBRShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
-    }
-
-    // gPassPBRShader.use();
-    // gPassPBRShader.setInt("albedoMap", 0);
-    // gPassPBRShader.setInt("normalMap", 1);
-    // gPassPBRShader.setInt("metallicMap", 2);
-    // gPassPBRShader.setInt("roughnessMap", 3);
-    // gPassPBRShader.setInt("aoMap", 4);
-
-    // glActiveTexture(GL_TEXTURE4);
-    // glBindTexture(GL_TEXTURE_2D, ballAoTexture);
-
-    // lPassPBRShader.use();
-    // lPassPBRShader.setInt("PositionMetallicMap", 0);
-    // lPassPBRShader.setInt("normalRoughnessMap", 1);
-    // lPassPBRShader.setInt("AlbedoAoMap", 2);
-    // lPassPBRShader.setInt("irradianceMap", 3);
+    // PBRShader.use();
+    // PBRShader.setVec3("albedo", 0.5f, 0.0f, 0.0f);
+    // PBRShader.setFloat("ao", 1.0f);
+    // PBRShader.setInt("irradianceMap", 0);
+    // PBRShader.setInt("prefilterMap", 1);
+    // PBRShader.setInt("brdfLUT", 2);
     // for (int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); i++)
     // {
-    //     lPassPBRShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
-    //     lPassPBRShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+    //     PBRShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
+    //     PBRShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
     // }
+
+    gPassPBRShader.use();
+    gPassPBRShader.setInt("albedoMap", 0);
+    gPassPBRShader.setInt("normalMap", 1);
+    gPassPBRShader.setInt("metallicMap", 2);
+    gPassPBRShader.setInt("roughnessMap", 3);
+    gPassPBRShader.setInt("aoMap", 4);
+
+    lPassPBRShader.use();
+    lPassPBRShader.setInt("PositionMetallicMap", 0);
+    lPassPBRShader.setInt("normalRoughnessMap", 1);
+    lPassPBRShader.setInt("AlbedoAoMap", 2);
+    lPassPBRShader.setInt("irradianceMap", 3);
+    lPassPBRShader.setInt("prefilterMap", 4);
+    lPassPBRShader.setInt("brdfLUT", 5);
+
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
+
+    for (int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); i++)
+    {
+        lPassPBRShader.setVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
+        lPassPBRShader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+    }
 
     skyboxShader.use();
     skyboxShader.setInt("environmentMap", 0);
@@ -417,41 +425,100 @@ int main()
 
         // Geometry Pass
         // -------------
-        // glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-        // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // glEnable(GL_DEPTH_TEST);
+        glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
 
         const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         const glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
 
-        // gPassPBRShader.use();
-        // gPassPBRShader.setMat4("projection", projection);
-        // gPassPBRShader.setMat4("view", view);
+        gPassPBRShader.use();
+        gPassPBRShader.setMat4("projection", projection);
+        gPassPBRShader.setMat4("view", view);
+
+        for (int i = 0; i < MATERIAL_COUNT; ++i)
+        {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, materials[i].albedoTexture);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, materials[i].normalTexture);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, materials[i].metallicTexture);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, materials[i].roughnessTexture);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, materials[i].aoTexture);
+
+            // render material spheres
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(3.0f * (i - (MATERIAL_COUNT - 1) / 2.0f), 0.0f, 0.0f));
+
+            gPassPBRShader.setMat4("model", model);
+            gPassPBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+            renderSphere();
+        }
+
+        // Lighting Pass
+        // -------------
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDisable(GL_DEPTH_TEST);
+
+        lPassPBRShader.use();
+        lPassPBRShader.setVec3("camPos", camera.Position);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, gPositionMetallic);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, gNormalRougness);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, gAlbedoAo);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
+
+        renderQuad();
+
+        // Scene w/out deffered shading
+        // ----------------------------
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // glEnable(GL_DEPTH_TEST);
+
+        // PBRShader.use();
+        // PBRShader.setMat4("projection", projection);
+        // PBRShader.setMat4("view", view);
+        // PBRShader.setVec3("camPos", camera.Position);
 
         // glActiveTexture(GL_TEXTURE0);
-        // glBindTexture(GL_TEXTURE_2D, ballAlbedoTexture);
+        // glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
         // glActiveTexture(GL_TEXTURE1);
-        // glBindTexture(GL_TEXTURE_2D, ballNormalTexture);
+        // glBindTexture(GL_TEXTURE_CUBE_MAP, prefilterMap);
         // glActiveTexture(GL_TEXTURE2);
-        // glBindTexture(GL_TEXTURE_2D, ballMetallicTexture);
-        // glActiveTexture(GL_TEXTURE3);
-        // glBindTexture(GL_TEXTURE_2D, ballRoughnessTexture);
+        // glBindTexture(GL_TEXTURE_2D, brdfLUTTexture);
 
-        // // render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
         // for (int row = 0; row < nrRows; ++row) 
         // {
+        //     PBRShader.setFloat("metallic", (float)row / (float)nrRows);
         //     for (int col = 0; col < nrColumns; ++col) 
         //     {
+        //         // we limit the roughness to a minimum value of 0.05
+        //         // on direct lighting.
+        //         PBRShader.setFloat("roughness", glm::max((float)col / (float)nrColumns, 0.05f));
+                
         //         model = glm::mat4(1.0f);
         //         model = glm::translate(model, glm::vec3(
         //             (col - (nrColumns / 2)) * spacing, 
         //             (row - (nrRows / 2)) * spacing, 
         //             0.0f
         //         ));
-        //         gPassPBRShader.setMat4("model", model);
-        //         gPassPBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+        //         PBRShader.setMat4("model", model);
+        //         PBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
         //         renderSphere();
         //     }
         // }
@@ -464,81 +531,11 @@ int main()
         //     model = glm::mat4(1.0f);
         //     model = glm::translate(model, lightPositions[i]);
         //     model = glm::scale(model, glm::vec3(0.5f));
-        //     gPassPBRShader.setMat4("model", model);
-        //     gPassPBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+
+        //     PBRShader.setMat4("model", model);
+        //     PBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
         //     renderSphere();
         // }
-
-        // // Lighting Pass
-        // // -------------
-        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        // glClear(GL_COLOR_BUFFER_BIT);
-        // glDisable(GL_DEPTH_TEST);
-
-        // lPassPBRShader.use();
-        // lPassPBRShader.setVec3("camPos", camera.Position);
-
-        // glActiveTexture(GL_TEXTURE0);
-        // glBindTexture(GL_TEXTURE_2D, gPositionMetallic);
-        // glActiveTexture(GL_TEXTURE1);
-        // glBindTexture(GL_TEXTURE_2D, gNormalRougness);
-        // glActiveTexture(GL_TEXTURE2);
-        // glBindTexture(GL_TEXTURE_2D, gAlbedoAo);
-        // glActiveTexture(GL_TEXTURE3);
-        // glBindTexture(GL_TEXTURE_2D, irradianceMap);
-
-        // renderQuad();
-
-        // Scene w/out deffered shading
-        // ----------------------------
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-
-        PBRShader.use();
-        PBRShader.setMat4("projection", projection);
-        PBRShader.setMat4("view", view);
-        PBRShader.setVec3("camPos", camera.Position);
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
-
-        for (int row = 0; row < nrRows; ++row) 
-        {
-            PBRShader.setFloat("metallic", (float)row / (float)nrRows);
-            for (int col = 0; col < nrColumns; ++col) 
-            {
-                // we limit the roughness to a minimum value of 0.05
-                // on direct lighting.
-                PBRShader.setFloat("roughness", glm::max((float)col / (float)nrColumns, 0.05f));
-                
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, glm::vec3(
-                    (col - (nrColumns / 2)) * spacing, 
-                    (row - (nrRows / 2)) * spacing, 
-                    0.0f
-                ));
-                PBRShader.setMat4("model", model);
-                PBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
-                renderSphere();
-            }
-        }
-
-        // render light source (simply re-render sphere at light positions)
-        // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
-        // keeps the codeprint small.
-        for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
-        {
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, lightPositions[i]);
-            model = glm::scale(model, glm::vec3(0.5f));
-
-            PBRShader.setMat4("model", model);
-            PBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
-            renderSphere();
-        }
 
         // Additional rendering
         // --------------------
@@ -548,18 +545,18 @@ int main()
         // glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         // glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
-        // Skybox
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glEnable(GL_DEPTH_TEST);
+        // // Skybox
+        // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // glEnable(GL_DEPTH_TEST);
 
-        skyboxShader.use();
-        skyboxShader.setMat4("projection", projection);
-        skyboxShader.setMat4("view", view);
+        // skyboxShader.use();
+        // skyboxShader.setMat4("projection", projection);
+        // skyboxShader.setMat4("view", view);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+        // glActiveTexture(GL_TEXTURE0);
+        // glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
-        renderCube();
+        // renderCube();
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------

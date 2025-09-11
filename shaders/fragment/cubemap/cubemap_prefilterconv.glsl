@@ -12,6 +12,7 @@ const float PI = 3.14159265359;
 float RadicalInverse_VdC(uint bits);
 vec2 Hammersley(uint i, uint N);
 vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness);
+float DistributionGGX(float NdotH, float roughness);
 
 
 void main()
@@ -91,4 +92,17 @@ vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
 	
     vec3 sampleVec = tangent * H.x + bitangent * H.y + N * H.z;
     return normalize(sampleVec);
+}
+
+float DistributionGGX(float NdotH, float roughness)
+{
+    float a      = roughness*roughness;
+    float a2     = a*a;
+    float NdotH2 = NdotH*NdotH;
+	
+    float num   = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+	
+    return num / denom;
 }
