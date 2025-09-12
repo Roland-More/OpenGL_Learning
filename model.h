@@ -1,3 +1,7 @@
+// TODO: Optimize Memory Usage -
+// only use vertices with tangents when the model actually has any
+
+
 #ifndef MODEL_H
 #define MODEL_H
 
@@ -14,15 +18,8 @@
 
 #include "mesh.h"
 #include "texture_loader.h"
+#include "model_flags.h"
 
-
-enum ModelFlags {
-    ModelLoad_None        = 0,
-    ModelLoad_FlipUVs     = 1 << 0, // 0001
-    ModelLoad_Tangents    = 1 << 1, // 0010
-    ModelLoad_GAMMA_CRCT  = 1 << 2, // 0100
-    // add more as needed
-};
 
 class Model 
 {
@@ -35,7 +32,7 @@ public:
     void Draw(Shader& shader)
     {
         for (unsigned int i = 0; i < meshes.size(); i++)
-            meshes[i].Draw(shader);
+            meshes[i].Draw(shader, flags);
     }
 
     size_t getNumMeshes()
@@ -71,6 +68,30 @@ private:
 
         Assimp::Importer import;
         const aiScene *scene = import.ReadFile(path, assimpFlags);
+
+        // Check textures detected by Assimp
+        // for (unsigned int m = 0; m < scene->mNumMaterials; m++) 
+        // {
+        //     aiMaterial* material = scene->mMaterials[m];
+
+        //     for (int type = aiTextureType_NONE; type <= aiTextureType_UNKNOWN; type++) {
+        //         aiTextureType texType = static_cast<aiTextureType>(type);
+        //         unsigned int texCount = material->GetTextureCount(texType);
+
+        //         if (texCount > 0) {
+        //             std::cout << "Material " << m 
+        //                     << " has " << texCount 
+        //                     << " textures of type " << texType 
+        //                     << std::endl;
+
+        //             for (unsigned int t = 0; t < texCount; t++) {
+        //                 aiString path;
+        //                 material->GetTexture(texType, t, &path);
+        //                 std::cout << "   -> " << path.C_Str() << std::endl;
+        //             }
+        //         }
+        //     }
+        // }
         
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) 
         {
@@ -105,6 +126,8 @@ private:
         std::vector<unsigned int> indices;
         std::vector<Texture> textures;
 
+        const bool hasTangents = flags & ModelLoad_Tangents;
+
         for (unsigned int i = 0; i < mesh->mNumVertices; i++)
         {
             Vertex vertex;
@@ -134,7 +157,7 @@ private:
                 vertex.TexCoords = glm::vec2(0.0f, 0.0f);
             }
 
-            if (flags & ModelLoad_Tangents)
+            if (hasTangents)
             {
                 vector.x = mesh->mTangents[i].x;
                 vector.y = mesh->mTangents[i].y;
@@ -153,26 +176,50 @@ private:
                 indices.push_back(face.mIndices[j]);
         }
 
+        // Skip materials if using custom textures
+        if (flags & ModelLoad_CustomTex)
+            return Mesh(vertices, indices, textures, hasTangents);
+            
         // process material
         if (mesh->mMaterialIndex >= 0)
-        {
+        {            
             aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
-            std::vector<Texture> diffuseMaps = loadMaterialTextures(material,
-                                                aiTextureType_DIFFUSE, "texture_diffuse");
-            textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-            std::vector<Texture> specularMaps = loadMaterialTextures(material,
-                                                aiTextureType_SPECULAR, "texture_specular");
-            textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-
-            if (ModelLoad_Tangents & flags)
+            
+            if (flags & ModelLoad_PBR)
             {
+                std::vector<Texture> albedoMaps = loadMaterialTextures(material,
+                                                    aiTextureType_BASE_COLOR, "albedoMap");
+                textures.insert(textures.end(), albedoMaps.begin(), albedoMaps.end());
                 std::vector<Texture> normalMaps = loadMaterialTextures(material,
-                                                    aiTextureType_HEIGHT, "texture_normal");
+                                                    aiTextureType_NORMALS, "normalMap");
                 textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+                std::vector<Texture> metallicMaps = loadMaterialTextures(material,
+                                                    aiTextureType_METALNESS, "metallicMap");
+                textures.insert(textures.end(), metallicMaps.begin(), metallicMaps.end());
+                std::vector<Texture> roughnessMaps = loadMaterialTextures(material,
+                                                    aiTextureType_DIFFUSE_ROUGHNESS, "roughnessMap");
+                textures.insert(textures.end(), roughnessMaps.begin(), roughnessMaps.end());
+                std::vector<Texture> aoMaps = loadMaterialTextures(material,
+                                                    aiTextureType_AMBIENT_OCCLUSION, "aoMap");
+                textures.insert(textures.end(), aoMaps.begin(), aoMaps.end());
+            }
+            else
+            {
+                std::vector<Texture> diffuseMaps = loadMaterialTextures(material,
+                                                    aiTextureType_DIFFUSE, "diffuse");
+                textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+                std::vector<Texture> specularMaps = loadMaterialTextures(material,
+                                                    aiTextureType_SPECULAR, "specular");
+                textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+
+                if (ModelLoad_Tangents & flags)
+                {
+                    std::vector<Texture> normalMaps = loadMaterialTextures(material,
+                                                        aiTextureType_HEIGHT, "normal");
+                    textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+                }
             }
         }
-        const bool hasTangents = flags & ModelLoad_Tangents;
-
         return Mesh(vertices, indices, textures, hasTangents);
     }
 

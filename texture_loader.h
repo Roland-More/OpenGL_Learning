@@ -15,6 +15,7 @@ enum Texture_filter {
 };
 
 enum Input_format {
+    RED = 0x1903,
     RGB = 0x1907,
     RGBA = 0x1908,
     GAMMA_CORRECTED = 0x8C40,
@@ -93,7 +94,10 @@ unsigned int TextureFromFile(const char* path, Input_format texformat)
     // Get the format based on the number of channels
     GLenum format;
     if (nrChannels == 1)
+    {
         format = GL_RED;
+        texformat = RED;
+    }
     else if (nrChannels == 3)
         format = GL_RGB;
     else if (nrChannels == 4)

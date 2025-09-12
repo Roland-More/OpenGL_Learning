@@ -11,6 +11,7 @@
 
 #include "shader.h"
 #include "camera.h"
+#include "model.h"
 #include "texture_loader.h"
 #include "render_shapes.h"
 #include "PBR_material.h"
@@ -148,6 +149,11 @@ int main()
     };
 
     const unsigned int hdrTexture = loadHdrTexture("resources/textures/equirectangular/ibl_hdr_radiance.png");
+
+    // Load models
+    // -----------
+    const PBRMaterial gunMaterial = PBRMaterial("resources/textures/PBR_materials/gun");
+    Model gun("resources/models/Cerberus_gun/Cerberus_LP.FBX", ModelLoad_CustomTex);
 
     // Set up framebuffers
     // -------------------
@@ -363,8 +369,6 @@ int main()
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // Load models
-
     // Configure shaders
     // -----------------
     // PBRShader.use();
@@ -438,27 +442,48 @@ int main()
         gPassPBRShader.setMat4("projection", projection);
         gPassPBRShader.setMat4("view", view);
 
-        for (int i = 0; i < MATERIAL_COUNT; ++i)
-        {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, materials[i].albedoTexture);
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, materials[i].normalTexture);
-            glActiveTexture(GL_TEXTURE2);
-            glBindTexture(GL_TEXTURE_2D, materials[i].metallicTexture);
-            glActiveTexture(GL_TEXTURE3);
-            glBindTexture(GL_TEXTURE_2D, materials[i].roughnessTexture);
-            glActiveTexture(GL_TEXTURE4);
-            glBindTexture(GL_TEXTURE_2D, materials[i].aoTexture);
+        // for (int i = 0; i < MATERIAL_COUNT; ++i)
+        // {
+        //     // render material spheres
+        //     glActiveTexture(GL_TEXTURE0);
+        //     glBindTexture(GL_TEXTURE_2D, materials[i].albedoTexture);
+        //     glActiveTexture(GL_TEXTURE1);
+        //     glBindTexture(GL_TEXTURE_2D, materials[i].normalTexture);
+        //     glActiveTexture(GL_TEXTURE2);
+        //     glBindTexture(GL_TEXTURE_2D, materials[i].metallicTexture);
+        //     glActiveTexture(GL_TEXTURE3);
+        //     glBindTexture(GL_TEXTURE_2D, materials[i].roughnessTexture);
+        //     glActiveTexture(GL_TEXTURE4);
+        //     glBindTexture(GL_TEXTURE_2D, materials[i].aoTexture);
 
-            // render material spheres
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3(3.0f * (i - (MATERIAL_COUNT - 1) / 2.0f), 0.0f, 0.0f));
+        //     model = glm::mat4(1.0f);
+        //     model = glm::translate(model, glm::vec3(3.0f * (i - (MATERIAL_COUNT - 1) / 2.0f), 0.0f, 0.0f));
 
-            gPassPBRShader.setMat4("model", model);
-            gPassPBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
-            renderSphere();
-        }
+        //     gPassPBRShader.setMat4("model", model);
+        //     gPassPBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+        //     renderSphere();
+        // }
+
+        // render gun
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, gunMaterial.albedoTexture);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, gunMaterial.normalTexture);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, gunMaterial.metallicTexture);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, gunMaterial.roughnessTexture);
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, gunMaterial.aoTexture);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 10.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.1f, 0.1f, 0.1f));
+
+        gPassPBRShader.setMat4("model", model);
+        gPassPBRShader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+        gun.Draw(gPassPBRShader);
 
         // Lighting Pass
         // -------------
