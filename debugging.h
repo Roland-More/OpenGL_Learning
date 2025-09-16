@@ -6,6 +6,8 @@
 
 #include <glad/glad.h>
 
+#include "shader.h"
+
 // Simple light error checker
 GLenum glCheckError_(const char *file, int line)
 {
@@ -99,5 +101,57 @@ GLenum glCheckError_(const char *file, int line)
 
     // glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_ERROR, 0,                       
     //                      GL_DEBUG_SEVERITY_MEDIUM, -1, "error message here");
+
+// Framebuffer texture attachment debugging:
+void DisplayFramebufferTexture(unsigned int textureID)
+{
+    static bool initialized = false;
+    static unsigned int shaderDisplayFBOOutput = 0;
+    static unsigned int vaoDebugTexturedRect = 0;
+
+    if (!initialized)
+    {
+        // Shader creation and configuration
+        Shader shaderCreation("shaders/debug/vertex/framebuffer.glsl", "shaders/debug/fragment/framebuffer.glsl");
+        shaderCreation.use();
+        shaderCreation.setInt("fboAttachment", 0);
+
+        shaderDisplayFBOOutput = shaderCreation.ID;
+
+        // VAO creation and configuration
+        const float vertices[] = {
+            0.25f, 0.25f,       0.0f, 0.0f,  // Bottom-left
+            0.9375f, 0.25f,     1.0f, 0.0f,  // Bottom-right
+            0.25f,  0.9375f,    0.0f, 1.0f,  // Top-left
+
+            0.25f,  0.9375f,    0.0f, 1.0f,  // Top-left
+            0.9375f, 0.25f,     1.0f, 0.0f,  // Bottom-right
+            0.9375f,  0.9375f,  1.0f, 1.0f,   // Top-right
+        };
+
+        unsigned int vbo;
+        glGenVertexArrays(1, &vaoDebugTexturedRect);
+        glGenBuffers(1, &vbo);
+
+        glBindVertexArray(vaoDebugTexturedRect);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+        initialized = true;
+    }
+  
+    glActiveTexture(GL_TEXTURE0);  	
+    glUseProgram(shaderDisplayFBOOutput);
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glBindVertexArray(vaoDebugTexturedRect);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+    glUseProgram(0);
+}
 
 #endif

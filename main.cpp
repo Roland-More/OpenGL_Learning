@@ -16,6 +16,8 @@
 #include "render_shapes.h"
 #include "PBR_material.h"
 
+#include "debugging.h"
+
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height); // Update viewportu
 void mouse_callback(GLFWwindow* window, double xpos, double ypos); // cursor movement tracking
@@ -582,6 +584,9 @@ int main()
         glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
         renderCube();
+
+        // Debugging showcase
+        DisplayFramebufferTexture(gNormalRougness);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
