@@ -18,6 +18,8 @@
 
 #include "debugging.h"
 
+#include "text_rendering.h"
+
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height); // Update viewportu
 void mouse_callback(GLFWwindow* window, double xpos, double ypos); // cursor movement tracking
@@ -48,6 +50,9 @@ float lastFrame = 0.0f; // Time of last frame
 
 int main()
 {
+    // just testing
+    loadFont();
+
     // Inicializacia glfw
     // ------------------
     glfwInit();
