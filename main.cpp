@@ -50,9 +50,6 @@ float lastFrame = 0.0f; // Time of last frame
 
 int main()
 {
-    // just testing
-    loadFont();
-
     // Inicializacia glfw
     // ------------------
     glfwInit();
@@ -93,6 +90,9 @@ int main()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
+
+    // just testing
+    loadFont();
 
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(true);
