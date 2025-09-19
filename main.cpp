@@ -92,7 +92,7 @@ int main()
     }
 
     // just testing
-    loadFont();
+    loadFont("fonts/arial.ttf");
 
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(true);
@@ -103,6 +103,10 @@ int main()
     // Enable depth testing for 3D rendering
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
+
+    // Blending needed for text rendering
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
 
     // Enable culling
     // glEnable(GL_CULL_FACE);
@@ -126,6 +130,8 @@ int main()
     Shader irradianceShader("shaders/vertex/equirectangular.glsl", "shaders/fragment/cubemap/cubemap_convolute.glsl");
     Shader prefilterShader("shaders/vertex/equirectangular.glsl", "shaders/fragment/cubemap/cubemap_prefilterconv.glsl");
     Shader brdfShader("shaders/vertex/2d_tex.glsl", "shaders/fragment/cubemap/cubemap_brdfconv.glsl");
+
+    Shader textShader("shaders/text/vertex/text.glsl", "shaders/text/fragment/text.glsl");
 
     // Set up uniforms and buffer data
     const glm::vec3 lightPositions[] = {
@@ -441,7 +447,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         // glEnable(GL_DEPTH_TEST);
 
-        const glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
         const glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 model = glm::mat4(1.0f);
 
@@ -576,11 +582,10 @@ int main()
         glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glBlitFramebuffer(0, 0, SCR_WIDTH, SCR_HEIGHT, 0, 0, SCR_WIDTH, SCR_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-
-        // Skybox
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glEnable(GL_DEPTH_TEST);
 
+        // Skybox
         skyboxShader.use();
         skyboxShader.setMat4("projection", projection);
         skyboxShader.setMat4("view", view);
@@ -590,8 +595,16 @@ int main()
 
         renderCube();
 
-        // Debugging showcase
-        DisplayFramebufferTexture(gNormalRougness);
+        // Render text
+        projection = glm::ortho(0.0f, SCR_WIDTH, 0.0f, SCR_HEIGHT);
+
+        textShader.use();
+        textShader.setMat4("projection", projection);
+        textShader.setInt("text", 0);
+
+        glEnable(GL_BLEND);
+        RenderText(textShader, "SERUS", 320.0f, 280.0f, 1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+        glDisable(GL_BLEND);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
