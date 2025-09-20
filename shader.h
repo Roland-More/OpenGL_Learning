@@ -206,6 +206,10 @@ public:
         glDeleteShader(fragment);
         glDeleteShader(geometry);
     }
+    ~Shader()
+    {
+        glDeleteProgram(ID);
+    }
 
     // use/activate the shader
     void use()
