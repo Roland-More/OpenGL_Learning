@@ -206,7 +206,7 @@ public:
         glDeleteShader(fragment);
         glDeleteShader(geometry);
     }
-    ~Shader()
+    void deleteProgram()
     {
         glDeleteProgram(ID);
     }

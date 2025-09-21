@@ -1,5 +1,5 @@
 // Improvements can be made: using too many textures,
-// artefacts when scaling and/or rotating,
+// artifacts when scaling and/or rotating,
 // bad function loadFont(); - split into more more logical ones
 
 #ifndef TEXT_RENDERING_H

@@ -145,8 +145,8 @@ int main()
     const unsigned int MATERIAL_COUNT = 3;
     const PBRMaterial materials[MATERIAL_COUNT] = {
         PBRMaterial("resources/textures/PBR_materials/carbon-fiber"),
-        PBRMaterial("resources/textures/PBR_materials/rusted_iron"),
         PBRMaterial("resources/textures/PBR_materials/gold-scuffed"),
+        PBRMaterial("resources/textures/PBR_materials/rusted_iron"),
     };
 
     // Load models
@@ -160,11 +160,13 @@ int main()
                 gPositionMetallic,
                 gNormalRoughness,
                 gAlbedoAo,
-                irradianceMap,
+                brdfLUTTexture]
+    = PBR_deferredFramebuffersSetup3x4f(SCR_WIDTH, SCR_HEIGHT);
+
+    const auto [irradianceMap,
                 prefilterMap,
-                brdfLUTTexture,
                 envCubemap]
-    = PBR_deferredSetup3x4f(SCR_WIDTH, SCR_HEIGHT, "resources/textures/equirectangular/ibl_hdr_radiance.png");
+    = generateIBLCubemaps_env("resources/textures/equirectangular/ibl_hdr_radiance.png");
 
     // Configure shaders
     // -----------------
@@ -323,6 +325,8 @@ int main()
         glEnable(GL_BLEND);
         RenderText(textShader, "SERUS", 320.0f, 280.0f, 1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
         glDisable(GL_BLEND);
+
+        DisplayFramebufferTexture(gAlbedoAo);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------

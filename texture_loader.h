@@ -264,4 +264,9 @@ unsigned int loadHdrTexture(const char* path)
     return hdrTexture;
 }
 
+inline void deleteTexture(unsigned int texture)
+{
+    glDeleteTextures(1, &texture);
+}
+
 #endif
