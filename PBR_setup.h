@@ -1,6 +1,9 @@
 // TODO: Probably better object oriented,
 // but I'm too lazy
-// fix the maps here
+
+// I can finally remove this comment
+// I cant express the feeling of relief
+// I am finally free of theese god forsaken maps
 
 
 #ifndef PBR_SETUP_H
@@ -30,9 +33,9 @@ struct IBLmaps {
 };
 
 struct IBLmaps_env {
-    unsigned int envCubemap;
     unsigned int irradianceMap;
     unsigned int prefilterMap;
+    unsigned int envCubemap;
 };
 
 static unsigned int captureFBO = 0;

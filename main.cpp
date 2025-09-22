@@ -105,7 +105,8 @@ int main()
 
     // Blending needed for text rendering
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_BLEND);
 
     // Enable culling
     // glEnable(GL_CULL_FACE);
@@ -328,10 +329,10 @@ int main()
         textShader.setInt("text", 0);
 
         glEnable(GL_BLEND);
-        RenderText(textShader, "SERUS", 320.0f, 280.0f, 1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+        RenderText(textShader, "SERUS", 20.0f, 20.0f, 1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
         glDisable(GL_BLEND);
 
-        DisplayFramebufferTexture(gAlbedoAo);
+        DisplayFramebufferTexture(brdfLUTTexture);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
