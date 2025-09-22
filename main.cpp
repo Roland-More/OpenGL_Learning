@@ -123,6 +123,10 @@ int main()
 
     Shader skyboxShader("shaders/vertex/cubemap.glsl", "shaders/fragment/cubemap/skyboxhrd.glsl");
 
+    Shader equirectangularShader("shaders/vertex/equirectangular.glsl", "shaders/fragment/equirectangular.glsl");
+    Shader irradianceShader("shaders/vertex/equirectangular.glsl", "shaders/fragment/cubemap/cubemap_convolute.glsl");
+    Shader prefilterShader("shaders/vertex/equirectangular.glsl", "shaders/fragment/cubemap/cubemap_prefilterconv.glsl");
+
     Shader textShader("shaders/text/vertex/text.glsl", "shaders/text/fragment/text.glsl");
 
     // Set up uniforms and buffer data
@@ -166,7 +170,8 @@ int main()
     const auto [irradianceMap,
                 prefilterMap,
                 envCubemap]
-    = generateIBLCubemaps_env("resources/textures/equirectangular/ibl_hdr_radiance.png");
+    = generateIBLCubemaps_env("resources/textures/equirectangular/ibl_hdr_radiance.png",
+                              equirectangularShader, irradianceShader, prefilterShader);
 
     // Configure shaders
     // -----------------

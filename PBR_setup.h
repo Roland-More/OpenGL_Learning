@@ -1,6 +1,5 @@
 // TODO: Probably better object oriented,
 // but I'm too lazy
-// also its probably better to send ibl shaders as function parameters
 // fix the maps here
 
 
@@ -35,13 +34,6 @@ struct IBLmaps_env {
     unsigned int irradianceMap;
     unsigned int prefilterMap;
 };
-
-// Load shaders
-// Using heap pointers so I can create shaders
-// after initalizig glad and glfw
-static Shader *equirectangularShader = nullptr;
-static Shader *irradianceShader = nullptr;
-static Shader *prefilterShader = nullptr;
 
 static unsigned int captureFBO = 0;
 static unsigned int captureRBO = 0;
@@ -136,23 +128,10 @@ PBRsetup PBR_deferredFramebuffersSetup3x4f(const float width, const float height
     return {gBuffer, gPositionMetallic, gNormalRoughness, gAlbedoAo, brdfLUTTexture};
 }
 
-static void initiateIBLShaders()
-{
-    equirectangularShader = new Shader("shaders/vertex/equirectangular.glsl", "shaders/fragment/equirectangular.glsl");
-    irradianceShader = new Shader("shaders/vertex/equirectangular.glsl", "shaders/fragment/cubemap/cubemap_convolute.glsl");
-    prefilterShader = new Shader("shaders/vertex/equirectangular.glsl", "shaders/fragment/cubemap/cubemap_prefilterconv.glsl");
-}
-
 // Generares IBL cubemaps for a probe
-IBLmaps generateIBLCubemaps(const char* environmentTexturePath)
+IBLmaps generateIBLCubemaps(const char *environmentTexturePath, Shader &equirectangularShader,
+                            Shader &irradianceShader, Shader &prefilterShader)
 {
-    // Load shader porgrams
-    // --------------------
-    if (!equirectangularShader)
-    {
-        initiateIBLShaders();
-    }
-
     // Load the texture
     // ----------------
     const unsigned int hdrTexture = loadHdrTexture(environmentTexturePath);
@@ -227,9 +206,9 @@ IBLmaps generateIBLCubemaps(const char* environmentTexturePath)
     };
 
     // convert HDR equirectangular environment map to cubemap equivalent
-    equirectangularShader->use();
-    equirectangularShader->setInt("equirectangularMap", 0);
-    equirectangularShader->setMat4("projection", captureProjection);
+    equirectangularShader.use();
+    equirectangularShader.setInt("equirectangularMap", 0);
+    equirectangularShader.setMat4("projection", captureProjection);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, hdrTexture);
 
@@ -237,7 +216,7 @@ IBLmaps generateIBLCubemaps(const char* environmentTexturePath)
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     for (unsigned int i = 0; i < 6; ++i)
     {
-        equirectangularShader->setMat4("view", captureViews[i]);
+        equirectangularShader.setMat4("view", captureViews[i]);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
                             GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -254,9 +233,9 @@ IBLmaps generateIBLCubemaps(const char* environmentTexturePath)
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 32, 32);
 
-    irradianceShader->use();
-    irradianceShader->setInt("environmentMap", 0);
-    irradianceShader->setMat4("projection", captureProjection);
+    irradianceShader.use();
+    irradianceShader.setInt("environmentMap", 0);
+    irradianceShader.setMat4("projection", captureProjection);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
@@ -264,7 +243,7 @@ IBLmaps generateIBLCubemaps(const char* environmentTexturePath)
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     for (unsigned int i = 0; i < 6; ++i)
     {
-        irradianceShader->setMat4("view", captureViews[i]);
+        irradianceShader.setMat4("view", captureViews[i]);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
                             GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceMap, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -273,9 +252,9 @@ IBLmaps generateIBLCubemaps(const char* environmentTexturePath)
     }
 
     // Prefilter the cubemap to use for specular IBL
-    prefilterShader->use();
-    prefilterShader->setInt("environmentMap", 0);
-    prefilterShader->setMat4("projection", captureProjection);
+    prefilterShader.use();
+    prefilterShader.setInt("environmentMap", 0);
+    prefilterShader.setMat4("projection", captureProjection);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
@@ -291,11 +270,11 @@ IBLmaps generateIBLCubemaps(const char* environmentTexturePath)
         glViewport(0, 0, mipWidth, mipHeight);
 
         float roughness = (float)mip / (float)(maxMipLevels - 1);
-        prefilterShader->setFloat("roughness", roughness);
+        prefilterShader.setFloat("roughness", roughness);
         for (unsigned int i = 0; i < 6; ++i)
         {
-            prefilterShader->setMat4("view", captureViews[i]);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
+            prefilterShader.setMat4("view", captureViews[i]);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                 GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterMap, mip);
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -311,15 +290,9 @@ IBLmaps generateIBLCubemaps(const char* environmentTexturePath)
 }
 
 // Generares IBL cubemaps for a probe, also returns the environment cubemap
-IBLmaps_env generateIBLCubemaps_env(const char* environmentTexturePath)
+IBLmaps_env generateIBLCubemaps_env(const char *environmentTexturePath, Shader &equirectangularShader,
+                                    Shader &irradianceShader, Shader &prefilterShader)
 {
-    // Load shader porgrams
-    // --------------------
-    if (!equirectangularShader)
-    {
-        initiateIBLShaders();
-    }
-
     // Load the texture
     // ----------------
     const unsigned int hdrTexture = loadHdrTexture(environmentTexturePath);
@@ -394,9 +367,9 @@ IBLmaps_env generateIBLCubemaps_env(const char* environmentTexturePath)
     };
 
     // convert HDR equirectangular environment map to cubemap equivalent
-    equirectangularShader->use();
-    equirectangularShader->setInt("equirectangularMap", 0);
-    equirectangularShader->setMat4("projection", captureProjection);
+    equirectangularShader.use();
+    equirectangularShader.setInt("equirectangularMap", 0);
+    equirectangularShader.setMat4("projection", captureProjection);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, hdrTexture);
 
@@ -404,7 +377,7 @@ IBLmaps_env generateIBLCubemaps_env(const char* environmentTexturePath)
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     for (unsigned int i = 0; i < 6; ++i)
     {
-        equirectangularShader->setMat4("view", captureViews[i]);
+        equirectangularShader.setMat4("view", captureViews[i]);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
                             GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -421,9 +394,9 @@ IBLmaps_env generateIBLCubemaps_env(const char* environmentTexturePath)
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 32, 32);
 
-    irradianceShader->use();
-    irradianceShader->setInt("environmentMap", 0);
-    irradianceShader->setMat4("projection", captureProjection);
+    irradianceShader.use();
+    irradianceShader.setInt("environmentMap", 0);
+    irradianceShader.setMat4("projection", captureProjection);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
@@ -431,7 +404,7 @@ IBLmaps_env generateIBLCubemaps_env(const char* environmentTexturePath)
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     for (unsigned int i = 0; i < 6; ++i)
     {
-        irradianceShader->setMat4("view", captureViews[i]);
+        irradianceShader.setMat4("view", captureViews[i]);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
                             GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceMap, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -440,9 +413,9 @@ IBLmaps_env generateIBLCubemaps_env(const char* environmentTexturePath)
     }
 
     // Prefilter the cubemap to use for specular IBL
-    prefilterShader->use();
-    prefilterShader->setInt("environmentMap", 0);
-    prefilterShader->setMat4("projection", captureProjection);
+    prefilterShader.use();
+    prefilterShader.setInt("environmentMap", 0);
+    prefilterShader.setMat4("projection", captureProjection);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
 
@@ -451,17 +424,17 @@ IBLmaps_env generateIBLCubemaps_env(const char* environmentTexturePath)
     for (unsigned int mip = 0; mip < maxMipLevels; ++mip)
     {
         // reisze framebuffer according to mip-level size.
-        unsigned int mipWidth  = 128 * std::pow(0.5, mip);
-        unsigned int mipHeight = 128 * std::pow(0.5, mip);
+        const unsigned int mipWidth  = 128 * std::pow(0.5, mip);
+        const unsigned int mipHeight = 128 * std::pow(0.5, mip);
         glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipWidth, mipHeight);
         glViewport(0, 0, mipWidth, mipHeight);
 
-        float roughness = (float)mip / (float)(maxMipLevels - 1);
-        prefilterShader->setFloat("roughness", roughness);
+        const float roughness = (float)mip / (float)(maxMipLevels - 1);
+        prefilterShader.setFloat("roughness", roughness);
         for (unsigned int i = 0; i < 6; ++i)
         {
-            prefilterShader->setMat4("view", captureViews[i]);
+            prefilterShader.setMat4("view", captureViews[i]);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
                                 GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefilterMap, mip);
 
