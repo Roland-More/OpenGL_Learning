@@ -1,10 +1,6 @@
 // TODO: Probably better object oriented,
 // but I'm too lazy
 
-// I can finally remove this comment
-// I cant express the feeling of relief
-// I am finally free of theese god forsaken maps
-
 
 #ifndef PBR_SETUP_H
 #define PBR_SETUP_H
@@ -43,6 +39,7 @@ static unsigned int captureRBO = 0;
 
 // PBR framebuffers and textures
 // -----------------------------
+
 // 3x4f means three buffers with 4 floats for deferred shading
 PBRsetup PBR_deferredFramebuffersSetup3x4f(const float width, const float height)
 {

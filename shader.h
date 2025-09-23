@@ -206,6 +206,8 @@ public:
         glDeleteShader(fragment);
         glDeleteShader(geometry);
     }
+
+    // voluntary destructor
     void deleteProgram()
     {
         glDeleteProgram(ID);

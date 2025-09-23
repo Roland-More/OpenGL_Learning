@@ -332,7 +332,7 @@ int main()
         RenderText(textShader, "SERUS", 20.0f, 20.0f, 1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
         glDisable(GL_BLEND);
 
-        DisplayFramebufferTexture(brdfLUTTexture);
+        DisplayFramebufferTexture(gNormalRoughness);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
